@@ -1,0 +1,7 @@
+0,general
+1,artist
+2,studio
+3,copyright
+4,character
+8,medium
+9,meta

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "packrat"
+version = "3.2.0"
+description = "Browse, download and organize images from many sites (Grabber's sources), plus a complete e6ai / e621 archive"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.25",
+    "dukpy>=0.6",            # runs the site sources (Grabber's JavaScript models) and JavaScript file names
+    "pillow>=10",            # thumbnails, the image viewer, image conversion and resizing
+    "beautifulsoup4>=4.11",  # sources that read web pages
+    "soupsieve>=2.3",
+    "keyring>=23",           # passwords and API keys in the Windows Credential Manager
+    "PySide6>=6.7",          # the window (Qt): thumbnails grid, video player, tray icon, built-in login browser
+]
+
+[project.scripts]
+packrat = "packrat.cli:main"
+
+[project.gui-scripts]
+# Windows: packrat-gui.exe opens the window without a console
+packrat-gui = "packrat.qt:main"
+
+[tool.setuptools.packages.find]
+include = ["packrat*"]
+
+[tool.setuptools.package-data]
+packrat = ["sources/**/*", "assets/*"]

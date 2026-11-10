@@ -1,0 +1,279 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.source = void 0;
+function parseCommonImage(item, pageUrl, preview) {
+    const parsedUrl = Grabber.regexMatch("/g/(?<id>\\d+)/(?<token>[^/]+)/", pageUrl);
+    return {
+        type: "gallery",
+        page_url: pageUrl,
+        id: parsedUrl["id"],
+        md5: parsedUrl["id"] + "/" + parsedUrl["token"],
+        tokens: {
+            token: parsedUrl["token"],
+            category: item.find(".cn, .cs")[0].innerText(),
+        },
+        preview_url: preview.attr("data-src") || preview.attr("src"),
+        created_at: item.find("[id^=posted_]")[0].innerText(),
+        name: item.find(".glink")[0].innerText(),
+    };
+}
+function parseCompactImage(item) {
+    var _a;
+    // Skip header
+    if (item.find("th").length > 0) {
+        return null;
+    }
+    // Skip ads
+    if (item.find("script").length > 0) {
+        return null;
+    }
+    const pageUrl = item.find(".glname a")[0].attr("href");
+    const preview = item.find(".glthumb img")[0];
+    return Object.assign(Object.assign({}, parseCommonImage(item, pageUrl, preview)), { gallery_count: item.find(".glthumb")[0].innerHTML().match(/>(\d+) pages?</)[1], author: (_a = item.find(".glhide a")[0]) === null || _a === void 0 ? void 0 : _a.innerText(), tags: item.find(".glname .gt, .glname .gtl").map((tag) => tag.attr("title")) });
+}
+function parseThumbnailImage(item) {
+    const pageUrl = item.find("a")[0].attr("href");
+    const preview = item.find("img")[0];
+    return Object.assign(Object.assign({}, parseCommonImage(item, pageUrl, preview)), { gallery_count: item.innerHTML().match(/>(\d+) pages?</)[1] });
+}
+function parseExtendedImage(item) {
+    var _a;
+    // Skip ads
+    if (item.find("script").length > 0) {
+        return null;
+    }
+    const pageUrl = item.find(".gl1e a")[0].attr("href");
+    const preview = item.find(".gl1e img")[0];
+    return Object.assign(Object.assign({}, parseCommonImage(item, pageUrl, preview)), { gallery_count: item.find(".gl3e")[0].innerHTML().match(/>(\d+) pages?</)[1], author: (_a = item.find(".gl3e a")[0]) === null || _a === void 0 ? void 0 : _a.innerText(), tags: item.find(".gl4e .gt, .gl4e .gtl").map((tag) => tag.attr("title")) });
+}
+function cssToObject(css) {
+    const ret = {};
+    css.split(";").map((style) => {
+        style = style.trim();
+        const index = style.indexOf(":");
+        if (index < 0) {
+            return;
+        }
+        ret[style.substr(0, index).trim()] = style.substr(index + 1).trim();
+    });
+    return ret;
+}
+function sizeToInt(size) {
+    const match = size.match(/^(-?)(\d+)\w*$/);
+    if (!match) {
+        return 0;
+    }
+    const val = parseInt(match[2], 10);
+    if (match[1].length > 0) {
+        return -val;
+    }
+    return val;
+}
+function parseSearch(srch) {
+    let cats = "0";
+    const tags = [];
+    const parts = srch.split(" ");
+    for (const tag of parts) {
+        const part = tag.trim();
+        if (part.indexOf("cats:") === 0) {
+            cats = part.substr(5);
+        }
+        else {
+            tags.push(part);
+        }
+    }
+    const search = tags.join(" ");
+    return { cats, search };
+}
+function parseList(src) {
+    const html = Grabber.parseHTML(src);
+    // Check display mode
+    const modeOption = html.find("#dms select option[selected], .searchnav select option[selected]");
+    let mode = "l";
+    if (!modeOption || !Array.isArray(modeOption) || modeOption.length === 0) {
+        console.warn("Parsing mode not found, falling back to 'Compact'"); // tslint:disable-line: no-console
+    }
+    else {
+        const possibleModes = ["Minimal", "Minimal+", "Compact", "Extended", "Thumbnail"];
+        const allowedModeOptions = modeOption.filter(m => possibleModes.indexOf(m.innerText().trim()) !== -1);
+        const validOption = allowedModeOptions.length > 0 ? allowedModeOptions[0] : modeOption[0];
+        mode = validOption.attr("value");
+        if (["m", "p", "l", "e", "t"].indexOf(mode) === -1) {
+            console.warn(`Unknown parsing mode "${mode}", falling back to 'Compact'`); // tslint:disable-line: no-console
+            mode = "l";
+        }
+    }
+    // Use different parser depending on the display mode
+    let itemQuery;
+    let parseFunction;
+    if (mode === "m" || mode === "p" || mode === "l") {
+        itemQuery = "table.itg > tbody > tr, table.itg > tr";
+        parseFunction = parseCompactImage;
+    }
+    else if (mode === "e") {
+        itemQuery = "table.itg > tbody > tr, table.itg > tr";
+        parseFunction = parseExtendedImage;
+    }
+    else if (mode === "t") {
+        itemQuery = "div.itg > div.gl1t";
+        parseFunction = parseThumbnailImage;
+    }
+    // Parse all images
+    const images = [];
+    for (const item of html.find(itemQuery)) {
+        try {
+            const image = parseFunction(item);
+            if (image) {
+                images.push(image);
+            }
+        }
+        catch (e) {
+            console.warn("Error parsing image: " + e + " / " + item.innerHTML()); // tslint:disable-line: no-console
+        }
+    }
+    return {
+        images,
+        pageCount: Grabber.countToInt(Grabber.regexToConst("page", ">(?<page>[0-9,]+)</a></td><td[^>]*>(?:&gt;|<a[^>]*>&gt;</a>)</td>", src)),
+        imageCount: Grabber.countToInt(Grabber.regexToConst("count", ">Showing (?<count>[0-9,]+) results<|Found(?: about)? (?<count_2>[0-9,]+) results.", src)),
+        urlNextPage: Grabber.regexToConst("url", '<a id="unext" href="(?<url_2>[^"]+)">', src),
+        urlPrevPage: Grabber.regexToConst("url", '<a id="uprev" href="(?<url_2>[^"]+)">', src),
+    };
+}
+exports.source = {
+    name: "E-Hentai",
+    modifiers: ["cats:"],
+    forcedTokens: ["*"],
+    searchFormat: {
+        and: " ",
+    },
+    auth: {
+        post: {
+            type: "post",
+            url: "https://forums.e-hentai.org/index.php?act=Login&CODE=01",
+            fields: [
+                {
+                    id: "pseudo",
+                    key: "UserName",
+                },
+                {
+                    id: "password",
+                    key: "PassWord",
+                    type: "password",
+                },
+                {
+                    type: "const",
+                    key: "CookieDate",
+                    value: "1",
+                },
+                {
+                    type: "const",
+                    key: "b",
+                    value: "d",
+                },
+                {
+                    type: "const",
+                    key: "bt",
+                    value: "1-1",
+                },
+            ],
+            check: {
+                type: "cookie",
+                key: "ipb_member_id",
+            },
+        },
+    },
+    apis: {
+        html: {
+            name: "Regex",
+            auth: [],
+            forcedLimit: 25,
+            search: {
+                url: (query, opts, previous) => {
+                    const s = parseSearch(query.search);
+                    const pagePart = Grabber.pageUrl(query.page, previous, 1, "", "prev={max}", "next={min}");
+                    return "/?" + pagePart + "&f_cats=" + s.cats + "&f_search=" + encodeURIComponent(s.search);
+                },
+                parse: parseList,
+            },
+            gallery: {
+                url: (query) => {
+                    return "/g/" + query.md5 + "/?p=" + (query.page - 1);
+                },
+                parse: (src) => {
+                    var _a, _b, _c;
+                    const html = Grabber.parseHTML(src);
+                    const posted = (_a = src.match(/>Posted:<\/td>\s*<td.*?>(.+?)</)) === null || _a === void 0 ? void 0 : _a[1];
+                    const author = (_c = (_b = html.find("#gdn a")) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.innerText();
+                    const tags = [];
+                    const tagGroups = html.find("#taglist")[0].find("tr");
+                    for (const tagGroup of tagGroups) {
+                        const td = tagGroup.find("td");
+                        let type = td[0].innerText();
+                        type = type.substr(0, type.length - 1);
+                        const list = td[1].find("a").map((tag) => tag.innerText());
+                        tags.push(...list.map((name) => ({ type, name })));
+                    }
+                    const images = [];
+                    let matches = Grabber.regexMatches('<div class="gdtm"[^>]*><div style="(?<div_style>[^"]+)"><a href="(?<page_url>[^"]+)"><img[^>]*></a></div>', src);
+                    if (matches.length < 1) {
+                        matches = Grabber.regexMatches('<div class="gdtl"[^>]*><a href="(?<page_url>[^"]+)"><img[^>]*src="(?<preview_url>[^"]+)"[^>]*></a></div>', src);
+                    }
+                    if (matches.length < 1) {
+                        matches = Grabber.regexMatches('<a href="(?<page_url>[^"]+/s/[^"]+)">(?:<div>)?<div title="Page [0-9]+: (?<filename>[^"]+)" style="(?<div_style>[^"]+)"></div>', src);
+                    }
+                    for (const match of matches) {
+                        if ("div_style" in match) {
+                            const styles = cssToObject(match["div_style"]);
+                            delete match["div_style"];
+                            const background = styles["background"].match(/url\(([^)]+)\) ([^ ]+) ([^ ]+)/);
+                            match["preview_url"] = background[1];
+                            match["preview_rect"] = [
+                                -sizeToInt(background[2]),
+                                -sizeToInt(background[3]),
+                                sizeToInt(styles["width"]),
+                                sizeToInt(styles["height"]),
+                            ].join(";"); // x;y;w;h
+                        }
+                        match["created_at"] = posted;
+                        match["author"] = author;
+                        match["tags"] = tags;
+                        images.push(match);
+                    }
+                    return {
+                        images,
+                        pageCount: Grabber.countToInt(Grabber.regexToConst("page", ">(?<page>[0-9,]+)</a></td><td[^>]*>(?:&gt;|<a[^>]*>&gt;</a>)</td>", src)),
+                        imageCount: Grabber.countToInt(Grabber.regexToConst("count", '<p class="gpc">Showing [0-9,]+ - [0-9,]+ of (?<count>[0-9,]+) images</p>', src)),
+                        urlNextPage: Grabber.regexToConst("url", '<td[^>]*><a[^>]+href="(?<url>[^"]+)"[^>]*>&gt;</a></td>', src),
+                        urlPrevPage: Grabber.regexToConst("url", '<td[^>]*><a[^>]+href="(?<url>[^"]+)"[^>]*>&lt;</a></td>', src),
+                    };
+                },
+            },
+            details: {
+                url: (id, md5) => {
+                    return { error: "Not supported (view token)" };
+                },
+                parse: (src) => {
+                    // Grabber.regexMatches("<div>(?<filename>[^:]*) :: (?<width>\\d+) x (?<height>\\d+) :: (?<filesize>[^ ]+ [KM]B)</div>", src);
+                    return {
+                        imageUrl: Grabber.regexToConst("url", '<img id="img" src="(?<url>[^"]+)"', src),
+                    };
+                },
+            },
+            endpoints: {
+                popular: {
+                    name: "Popular",
+                    input: {},
+                    url: () => "/popular",
+                    parse: parseList,
+                },
+                favorites: {
+                    name: "Favorites",
+                    input: {},
+                    auth: true,
+                    url: () => "/favorites.php",
+                    parse: parseList,
+                },
+            },
+        },
+    },
+};

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.venv.broken-*/
+data/
+downloads/
+archive/
+packrat.ini
+e6ai-archiver.ini
+build/
+dist/
+*.egg-info/
+.ruff_cache/
+.pytest_cache/

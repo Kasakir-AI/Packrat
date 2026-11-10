@@ -1,0 +1,180 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.source = void 0;
+function formatSearch(query) {
+    return encodeURIComponent(query
+        .replace(/ /g, ", ")
+        .replace(/_/g, " "));
+}
+function completeImage(img) {
+    if (!img.file_url || img.file_url.length < 5) {
+        img.file_url = (img.sample_url || img.preview_url || "")
+            .replace(/\/s\d+\.zerochan/, "/static.zerochan")
+            .replace(".240.", ".full.")
+            .replace(".600.", ".full.")
+            .replace("/240/", "/full/")
+            .replace("/600/", "/full/");
+    }
+    if (img.file_size) {
+        img.file_size = Grabber.fileSizeToInt(img.file_size);
+    }
+    return img;
+}
+const sortMap = {
+    "fav-all-time": "fav&t=0",
+    "fav-3-months": "fav&t=2",
+    "fav-1-week": "fav&t=1",
+};
+const meta = {
+    order: {
+        type: "options",
+        options: ["id", "fav", "fav-all-time", "fav-3-months", "fav-1-week", "random"],
+        default: "id",
+    },
+};
+exports.source = {
+    name: "Zerochan",
+    modifiers: ["order:id", "order:fav", "order:fav-all-time", "order:fav-3-months", "order:fav-1-week", "order:random"],
+    forcedTokens: ["filename", "date"],
+    tagFormat: {
+        case: "upper",
+        wordSeparator: " ",
+    },
+    searchFormat: {
+        and: ", ",
+    },
+    meta,
+    auth: {
+        session: {
+            type: "post",
+            url: "/login",
+            fields: [
+                {
+                    id: "pseudo",
+                    key: "name",
+                },
+                {
+                    id: "password",
+                    key: "password",
+                    type: "password",
+                },
+                {
+                    key: "login",
+                    type: "const",
+                    value: "Login",
+                },
+                {
+                    key: "ref",
+                    type: "const",
+                    value: "ref",
+                },
+            ],
+            check: {
+                type: "cookie",
+                key: "z_hash",
+            },
+        },
+    },
+    apis: {
+        rss: {
+            name: "RSS",
+            auth: [],
+            forcedLimit: 100,
+            search: {
+                url: (query, opts, previous) => {
+                    try {
+                        const search = Grabber.parseSearchQuery(query.search, meta);
+                        const sortPart = search.order ? (search.order in sortMap ? sortMap[search.order] : search.order) : "id";
+                        const pagePart = Grabber.pageUrl(query.page, previous, 100, "p={page}", "o={max}", "o={min}");
+                        return "/" + formatSearch(search.query) + "?s=" + sortPart + "&xml&" + pagePart;
+                    }
+                    catch (e) {
+                        return { error: e.message };
+                    }
+                },
+                parse: (src) => {
+                    const fixedSrc = src.replace(/<div.*?>[\s\S]+?<\/div>/, ""); // Fix malformed XML for multi-tag search
+                    const parsed = Grabber.parseXML(fixedSrc);
+                    const data = Grabber.makeArray(parsed.rss.channel.item);
+                    const images = [];
+                    for (const image of data) {
+                        const img = {
+                            page_url: image["link"]["#text"],
+                            name: image["title"]["#text"],
+                            tags: image["media:keywords"]["#text"].trim().split(", "),
+                            preview_url: image["media:thumbnail"]["#text"] || image["media:thumbnail"]["@attributes"]["url"],
+                        };
+                        img.id = Grabber.regexToConst("id", "/(?<id>\\d+)", img.page_url);
+                        if (image["media:content"]["@attributes"]["expression"] === "sample") {
+                            img.sample_url = image["media:content"]["#text"] || image["media:content"]["@attributes"]["url"];
+                            img.sample_width = image["media:content"]["@attributes"]["width"];
+                            img.sample_height = image["media:content"]["@attributes"]["height"];
+                        }
+                        else {
+                            img.file_url = image["media:content"]["#text"] || image["media:content"]["@attributes"]["url"];
+                            img.width = image["media:content"]["@attributes"]["width"];
+                            img.height = image["media:content"]["@attributes"]["height"];
+                        }
+                        images.push(completeImage(img));
+                    }
+                    const imageCount = parsed.rss.channel.description
+                        ? Grabber.countToInt(Grabber.regexToConst("count", "has (?<count>[0-9,]+) .+? anime images", parsed.rss.channel.description["#text"]))
+                        : undefined;
+                    return {
+                        images,
+                        imageCount,
+                    };
+                },
+            },
+        },
+        html: {
+            name: "Regex",
+            auth: [],
+            forcedLimit: 22,
+            search: {
+                url: (query, opts, previous) => {
+                    try {
+                        const search = Grabber.parseSearchQuery(query.search, meta);
+                        const sortPart = search.order ? (search.order in sortMap ? sortMap[search.order] : search.order) : "id";
+                        const pagePart = Grabber.pageUrl(query.page, previous, 100, "p={page}", "o={max}", "o={min}");
+                        return "/" + formatSearch(search.query) + "?s=" + sortPart + "&" + pagePart;
+                    }
+                    catch (e) {
+                        return { error: e.message };
+                    }
+                },
+                parse: (src) => {
+                    let wiki = Grabber.regexToConst("wiki", "<!--.*?shareaholic-canvas.*?-->\\s*<p>(?<wiki>.+?)</p>", src);
+                    wiki = wiki ? wiki.replace(/href="\/([^"]+)"/g, 'href="$1"') : wiki;
+                    return {
+                        tags: Grabber.regexToTags("<li[^>]*>\\s*<a [^>]+>(?<name>[^>]+)</a>\\s+(?:<span>(?<type>[^<]+) (?<count>[0-9]+)</span>|(?<type_2>[^<]*))\\s*</li>", src),
+                        images: Grabber.regexToImages("<a href=['\"]/(?<id>[^'\"]+)['\"][^>]*>[^<]*(?:<b>[^<]*</b>)?[^<]*(?:<span>[^<]*</span>)?[^<]*(?<image><img\\s*(?:data-)?src=['\"](?<preview_url>[^'\"]*)['\"][^>]+title=['\"](?<width>\\d+)x(?<height>\\d+) (?<file_size>[^'\"]+)['\"][^>]*/?>)", src).map(completeImage),
+                        pageCount: Grabber.countToInt(Grabber.regexToConst("page", "page (?:[0-9,]+) of (?<page>[0-9,]+)", src)),
+                        imageCount: Grabber.countToInt(Grabber.regexToConst("count", "has (?<count>[0-9,]+) .+? anime images", src)),
+                        wiki,
+                    };
+                },
+            },
+            details: {
+                url: (id, md5) => {
+                    return "/" + id;
+                },
+                parse: (src) => {
+                    return {
+                        tags: Grabber.regexToTags('<li[^>]*>\\s*<a[^>]+>\\s*(?:<img src="[^"]*/(?<type_3>[^"]+)\\.svg"[^>]*>\\s*)?(?<name>[^>]+?)\\s*</a>\\s+(?:<span>(?<type>[^<]+) (?<count>[0-9]+)</span>|(?<type_2>[^<]*))\\s*</li>', src),
+                        imageUrl: Grabber.regexToConst("url", '<div id="large">\\s*<a href="(?<url>[^"]+)"[^>]* tabindex="1">', src),
+                        createdAt: Grabber.regexToConst("date", 'Entry by <a href="[^"]+">[^<]+</a>\\s*<span title="(?<date>[^"]+)">', src),
+                    };
+                },
+            },
+            check: {
+                url: () => {
+                    return "/";
+                },
+                parse: (src) => {
+                    return src.search(/© [0-9]+-[0-9]+ Zerochan/) !== -1;
+                },
+            },
+        },
+    },
+};

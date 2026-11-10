@@ -1,0 +1,207 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.source = void 0;
+function completeImage(img) {
+    if ((!img.file_url || img.file_url.length < 5) && img.preview_url) {
+        img.file_url = img.preview_url.replace("/preview/", "/");
+    }
+    return img;
+}
+exports.source = {
+    name: "Moebooru",
+    modifiers: ["rating:safe", "rating:questionable", "rating:explicit", "user:", "fav:", "fastfav:", "md5:", "source:", "id:", "width:", "height:", "score:", "mpixels:", "filesize:", "date:", "gentags:", "arttags:", "chartags:", "copytags:", "approver:", "parent:", "sub:", "status:deleted", "status:active", "status:flagged", "status:pending", "order:id", "order:id_desc", "order:score", "order:score_asc", "order:mpixels", "order:mpixels_asc", "order:filesize", "order:landscape", "order:portrait", "order:favcount", "order:rank", "order:change", "order:change_desc", "parent:none", "unlocked:rating"],
+    forcedTokens: [],
+    tagFormat: {
+        case: "lower",
+        wordSeparator: "_",
+    },
+    searchFormat: {
+        and: " ",
+        or: {
+            separator: " ",
+            prefix: "~",
+        },
+        parenthesis: false,
+        precedence: "or",
+    },
+    auth: {
+        url: {
+            type: "url",
+            fields: [
+                {
+                    id: "pseudo",
+                    key: "login",
+                },
+                {
+                    id: "password",
+                    type: "password",
+                },
+                {
+                    id: "salt",
+                    type: "salt",
+                    def: "choujin-steiner--%password%--",
+                },
+                {
+                    key: "password_hash",
+                    type: "hash",
+                    hash: "sha1",
+                    salt: "%salt%",
+                },
+            ],
+        },
+    },
+    apis: {
+        json: {
+            name: "JSON",
+            auth: [],
+            maxLimit: 1000,
+            search: {
+                url: (query, opts, previous) => {
+                    const pagePart = Grabber.pageUrl(query.page, previous, -1, "{page}");
+                    return "/post/index.json?limit=" + opts.limit + "&page=" + pagePart + "&tags=" + encodeURIComponent(query.search);
+                },
+                parse: (src) => {
+                    const data = JSON.parse(src);
+                    const images = [];
+                    for (const image of data) {
+                        images.push(completeImage(image));
+                    }
+                    return { images };
+                },
+            },
+            tags: {
+                url: (query) => {
+                    return "/tag.json?page=" + query.page;
+                },
+                parse: (src) => {
+                    const map = {
+                        "id": "id",
+                        "name": "name",
+                        "count": "count",
+                        "typeId": "type",
+                    };
+                    const data = JSON.parse(src);
+                    const tags = [];
+                    for (const tag of data) {
+                        tags.push(Grabber.mapFields(tag, map));
+                    }
+                    return { tags };
+                },
+            },
+        },
+        xml: {
+            name: "XML",
+            auth: [],
+            maxLimit: 1000,
+            search: {
+                url: (query, opts, previous) => {
+                    const pagePart = Grabber.pageUrl(query.page, previous, -1, "{page}");
+                    return "/post/index.xml?limit=" + opts.limit + "&page=" + pagePart + "&tags=" + encodeURIComponent(query.search);
+                },
+                parse: (src) => {
+                    const parsed = Grabber.parseXML(src);
+                    const data = Grabber.makeArray(parsed.posts.post);
+                    const images = [];
+                    for (const dta of data) {
+                        const image = "@attributes" in dta && "id" in dta["@attributes"] ? dta["@attributes"] : dta;
+                        images.push(completeImage(image));
+                    }
+                    return {
+                        images,
+                        imageCount: parsed.posts["@attributes"]["count"],
+                    };
+                },
+            },
+            tags: {
+                url: (query) => {
+                    return "/tag.xml?page=" + query.page;
+                },
+                parse: (src) => {
+                    const map = {
+                        "id": "id",
+                        "name": "name",
+                        "count": "count",
+                        "typeId": "type",
+                    };
+                    const data = Grabber.makeArray(Grabber.parseXML(src).tags.tag);
+                    const tags = [];
+                    for (const dta of data) {
+                        const tag = "@attributes" in dta && "id" in dta["@attributes"] ? dta["@attributes"] : dta;
+                        tags.push(Grabber.mapFields(tag, map));
+                    }
+                    return { tags };
+                },
+            },
+        },
+        html: {
+            name: "Regex",
+            auth: [],
+            maxLimit: 1000,
+            search: {
+                url: (query, opts, previous) => {
+                    const pagePart = Grabber.pageUrl(query.page, previous, -1, "{page}");
+                    return "/post/index?limit=" + opts.limit + "&page=" + pagePart + "&tags=" + encodeURIComponent(query.search);
+                },
+                parse: (src) => {
+                    const images = Grabber.regexToImages("Post\\.register\\((?<json>\\{.+?\\})\\);?", src).map(completeImage);
+                    let pageCount = Grabber.regexToConst("page", '>(?<page>\\d+)</a>\\s*<a class="next_page" rel="next" href="', src);
+                    if (pageCount === undefined && /<div id="paginator">\s*<\/div>/.test(src)) {
+                        pageCount = 1;
+                    }
+                    return {
+                        tags: Grabber.regexToTags('<li class="(?:[^"]* )?tag-type-(?<type>[^" ]+)"[^>]*>(?:[^<]*<a[^>]*>[^<]*</a>)*[^<]*<a[^>]*>(?<name>[^<]*)</a>[^<]*<span[^>]*>(?<count>\\d+)k?</span>[^<]*</li>', src),
+                        images,
+                        pageCount,
+                    };
+                },
+            },
+            details: {
+                url: (id, md5) => {
+                    return "/post/show/" + id;
+                },
+                parse: (src) => {
+                    return {
+                        pools: Grabber.regexToPools('<div class="status-notice" id="pool\\d+">[^<]*Pool:[^<]*(?:<a href="/post/show/(?<previous>\\d+)" >&lt;&lt;</a>)?[^<]*<a href="/pool/show/(?<id>\\d+)" >(?<name>[^<]+)</a>[^<]*(?:<a href="/post/show/(?<next>\\d+)" >&gt;&gt;</a>)?[^<]*</div>', src),
+                        tags: Grabber.regexToTags('<li class="(?:[^"]* )?tag-type-(?<type>[^" ]+)"[^>]*>(?:[^<]*<a[^>]*>[^<]*</a>)*[^<]*<a[^>]*>(?<name>[^<]*)</a>[^<]*<span[^>]*>(?<count>\\d+)k?</span>[^<]*</li>', src),
+                    };
+                },
+            },
+            tagTypes: {
+                url: () => {
+                    return "/tag";
+                },
+                parse: (src) => {
+                    const contents = src.match(/<select[^>]* name="type"[^>]*>([\s\S]+)<\/select>/);
+                    if (!contents) {
+                        return { error: "Parse error: could not find the tag type <select> tag" };
+                    }
+                    const results = Grabber.regexMatches('<option value="(?<id>\\d+)">(?<name>[^<]+)</option>', contents[1]);
+                    const types = results.map((r) => ({
+                        id: r.id,
+                        name: r.name.toLowerCase(),
+                    }));
+                    return { types };
+                },
+            },
+            tags: {
+                url: (query, opts) => {
+                    return "/tag?limit=" + opts.limit + "&page=" + query.page;
+                },
+                parse: (src) => {
+                    return {
+                        tags: Grabber.regexToTags('<tr[^>]*>\\s*<td[^>]*>(?<count>\\d+)</td>\\s*<td[^>]*>\\s*<a.+?>\\?</a>\\s*<a[^>]+>(?<name>.*?)</a>\\s*</td>\\s*<td>(?<type>.+?)</td>\\s*<td[^>]*><a href="/tag/edit/(?<id>\\d+)">', src),
+                    };
+                },
+            },
+            check: {
+                url: () => {
+                    return "/";
+                },
+                parse: (src) => {
+                    return src.indexOf("Running Moebooru") !== -1
+                        || src.indexOf("Running MyImouto 1") !== -1; // MyImouto is a PHP port of Moebooru
+                },
+            },
+        },
+    },
+};

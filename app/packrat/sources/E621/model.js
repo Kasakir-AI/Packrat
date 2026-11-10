@@ -1,0 +1,267 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.source = void 0;
+function completeImage(img) {
+    if (!img.md5 && img.file_url) {
+        img.md5 = img.file_url.substring(img.file_url.lastIndexOf("/") + 1, img.file_url.lastIndexOf("."));
+    }
+    return img;
+}
+const imgMap = {
+    "ext": "files.meta.ext",
+    "change": "change_seq",
+    "creator_id": "uploader_id",
+    "id": "id",
+    "rating": "rating",
+    "file_url": "files.original.url",
+    "width": "files.original.width",
+    "height": "files.original.height",
+    "file_size": "files.meta.size",
+    "preview_url": "files.preview.jpg",
+    "preview_width": "files.preview.width",
+    "preview_height": "files.preview.height",
+    "sample_url": "files.sample.jpg",
+    "sample_height": "files.sample.height",
+    "sample_width": "files.sample.width",
+    "md5": "files.meta.md5",
+    "has_children": "has.children",
+    "parent_id": "relationships.parent_id",
+    "score": "stats.score.total",
+    "sources": "sources",
+};
+const imgMapV1 = {
+    "ext": "file.ext", "change": "change_seq", "creator_id": "uploader_id", "id": "id", "rating": "rating",
+    "file_url": "file.url", "width": "file.width", "height": "file.height", "file_size": "file.size",
+    "preview_url": "preview.url", "preview_width": "preview.width", "preview_height": "preview.height",
+    "sample_url": "sample.url", "sample_height": "sample.height", "sample_width": "sample.width",
+    "md5": "file.md5", "has_children": "relationships.has_children", "parent_id": "relationships.parent_id",
+    "score": "score.total", "sources": "sources",
+};
+function parseImage(raw) {
+    var _a;
+    const img = Grabber.mapFields(raw, raw.files ? imgMap : imgMapV1);
+    img.tokens = { "fav_count": raw.stats ? raw.stats.fav_count : raw.fav_count,
+                   "author": raw.uploader_name || "", "pools": (raw.pools || []).join(" "),
+                   "description": raw.description || "" };
+    if (!raw.files && raw.sample && raw.sample.has === false) { delete img.sample_url; }
+    img.created_at = Math.floor(Date.parse(raw.created_at) / 1000);
+    img.has_comments = ((_a = raw.stats) === null || _a === void 0 ? void 0 : _a.comment_count) > 0;
+    // Determine flags
+    img.status = "active";
+    if (raw.flags.pending === true) {
+        img.status = "pending";
+    }
+    else if (raw.flags.flagged === true) {
+        img.status = "flagged";
+    }
+    else if (raw.flags.deleted === true) {
+        img.status = "deleted";
+    }
+    if (Array.isArray(raw.tags)) {
+        img.tags = raw.tags;
+    }
+    else {
+        const tags = [];
+        for (const type in raw.tags) {
+            for (const name of raw.tags[type]) {
+                tags.push({ name, type });
+            }
+        }
+        img.tags = tags;
+    }
+    if (!img.md5 || img.md5.length === 0) {
+        return null;
+    }
+    return completeImage(img);
+}
+exports.source = {
+    name: "E621",
+    modifiers: ["rating:safe", "rating:questionable", "rating:explicit", "rating:s", "rating:q", "rating:e", "user:", "fav:", "fastfav:", "md5:", "source:", "id:", "width:", "height:", "score:", "mpixels:", "filesize:", "date:", "gentags:", "arttags:", "chartags:", "copytags:", "approver:", "parent:", "sub:", "status:any", "status:deleted", "status:active", "status:flagged", "status:pending", "order:id", "order:id_desc", "order:score", "order:score_asc", "order:mpixels", "order:mpixels_asc", "order:filesize", "order:landscape", "order:portrait", "order:favcount", "order:rank", "order:change", "order:change_desc", "order:random", "parent:none", "unlocked:rating"],
+    forcedTokens: ["filename"],
+    tagFormat: {
+        case: "lower",
+        wordSeparator: "_",
+    },
+    searchFormat: {
+        and: " ",
+    },
+    auth: {
+        httpBasic: {
+            type: "http_basic",
+            passwordType: "apiKey",
+        },
+        url: {
+            type: "url",
+            fields: [
+                {
+                    id: "pseudo",
+                    key: "login",
+                },
+                {
+                    id: "apiKey",
+                    key: "api_key",
+                    type: "text",
+                },
+            ],
+        },
+    },
+    apis: {
+        json: {
+            name: "JSON",
+            auth: [],
+            maxLimit: 200,
+            search: {
+                parseErrors: true,
+                url: (query, opts, previous) => {
+                    try {
+                        const pagePart = Grabber.pageUrl(query.page, previous, 750, "{page}", "a{max}", "b{min}");
+                        return "/posts.json?limit=" + opts.limit + "&page=" + pagePart + "&tags=" + encodeURIComponent(query.search);
+                    }
+                    catch (e) {
+                        return { error: e.message };
+                    }
+                },
+                parse: (src) => {
+                    const data = JSON.parse(src);
+                    if ("success" in data && data["success"] === false && "message" in data) {
+                        return { error: data["message"] };
+                    }
+                    const images = [];
+                    let invalid = 0;
+                    const posts = Array.isArray(data) ? data : data["posts"];
+                    for (const image of posts) {
+                        const img = parseImage(image);
+                        if (!img) {
+                            continue;
+                        }
+                        if (img.md5 && !img.file_url) {
+                            invalid++;
+                        }
+                        images.push(completeImage(img));
+                    }
+                    if (invalid > 0) {
+                        console.warn(`${invalid} image(s) without URL found, login to view them`); // tslint:disable-line:no-console
+                    }
+                    return { images };
+                },
+            },
+            details: {
+                fullResults: true,
+                url: (id, md5) => {
+                    return "/posts/" + id + ".json";
+                },
+                parse: (src) => {
+                    const data = JSON.parse(src);
+                    const post = "id" in data ? data : data["post"];
+                    return parseImage(post);
+                },
+            },
+            tags: {
+                url: (query, opts) => {
+                    return "/tags.json?limit=" + opts.limit + "&search[order]=" + query.order + "&page=" + query.page;
+                },
+                parse: (src) => {
+                    const map = {
+                        "id": "id",
+                        "name": "name",
+                        "count": "post_count",
+                        "typeId": "category",
+                        "related": "related_tags",
+                    };
+                    const data = JSON.parse(src);
+                    const tags = [];
+                    for (const tag of data) {
+                        const ret = Grabber.mapFields(tag, map);
+                        if (ret.related) {
+                            ret.related = ret.related.split(" ").filter((_, i) => i % 2 === 0);
+                        }
+                        tags.push(ret);
+                    }
+                    return { tags };
+                },
+            },
+        },
+        html: {
+            name: "Regex",
+            auth: [],
+            maxLimit: 200,
+            search: {
+                parseErrors: true,
+                url: (query, opts, previous) => {
+                    try {
+                        const pagePart = Grabber.pageUrl(query.page, previous, 1000, "{page}", "a{max}", "b{min}");
+                        return "/posts?limit=" + opts.limit + "&page=" + pagePart + "&tags=" + encodeURIComponent(query.search);
+                    }
+                    catch (e) {
+                        return { error: e.message };
+                    }
+                },
+                parse: (src, statusCode) => {
+                    const match = src.match(/<div id="page">\s*<p>([^<]+)<\/p>\s*<\/div>/m);
+                    if (match) {
+                        return { error: match[1] };
+                    }
+                    const warn = src.match(/<div class="[^"]*hidden-posts-notice">(.+?)<\/div>/m);
+                    if (warn) {
+                        console.warn(warn[1]); // tslint:disable-line:no-console
+                    }
+                    let wiki = Grabber.regexToConst("wiki", '<div id="excerpt"(?:[^>]+)>(?<wiki>.+?)</div>', src);
+                    wiki = wiki ? wiki.replace(/href="\/wiki_pages\/show_or_new\?title=([^"]+)"/g, 'href="$1"') : wiki;
+                    return {
+                        tags: Grabber.regexToTags('<li class="category-(?<typeId>[^"]+)">(?:\\s*<a class="wiki-link"[^>]* href="[^"]+">\\?</a>)?(?:\\s*<a[^>]* class="search-inc-tag">[^<]+</a>\\s*<a[^>]* class="search-exl-tag">[^<]+</a>)?\\s*<a[^>]* class="search-tag"\\s+[^>]*href="[^"]+"[^>]*>(?<name>[^<]+)</a>\\s*<span class="post-count">(?<count>[^<]+)</span>\\s*</li>|<li[^>]*\\sdata-name="(?<name_2>[^"]+)"[^>]*\\sdata-category="(?<type>[^"]+)"[^>]*\\sdata-count="(?<count_2>\\d+)"[^>]*>', src),
+                        images: Grabber.regexToImages('<article[^>]* id="[^"]*" class="[^"]*"\\s+data-id="(?<id>[^"]*)"\\s+data-has-sound="[^"]*"\\s+data-tags="(?<tags>[^"]*)"\\s+data-rating="(?<rating>[^"]*)"\\s+data-flags="(?<flags>[^"]*)"\\s+data-uploader-id="(?<creator_id>[^"]*)"(?:\\s+data-uploader="(?<author>[^"]*)")?\\s+[^>]*data-file-url="(?<file_url>[^"]*)"\\s+data-large-file-url="(?<sample_url>[^"]*)"\\s+data-preview-file-url="(?<preview_url>[^"]*)"', src).map(completeImage),
+                        wiki,
+                        pageCount: Grabber.regexToConst("page", '>(?<page>\\d+)</(?:a|span)></li><li[^<]*><(?:a|span)[^>]*>(?:&gt;&gt;|<i class="[^"]+"></i>)<', src),
+                    };
+                },
+            },
+            details: {
+                url: (id, md5) => {
+                    return "/posts/" + id;
+                },
+                parse: (src) => {
+                    return {
+                        pools: Grabber.regexToPools('<div id="pool-nav">[^<]*<ul>[^<]*<li id="nav-link-for-pool-\\d+" class="pool-\\w+-\\w+ pool-\\w+-\\w+">[^<]*(?:<a class="first" title="to page 1" href=".*?">.*?</a>|<span class="first">.*?</span>)[^<]*(?:<a rel="prev" class="prev" title="to page \\d+" href="/posts/(?<previous>\\d+)\\?pool_id=\\d+">.*?</a>|<span class="prev">.*?</span>)?[^<]*<span class="pool-name">[^<]*<a title="page \\d+/\\d+" href="/pools/(?<id>\\d+)">Pool: (?<name>[^<]+)</a>[^<]*</span>[^<]*(?:<a rel="next" class="next" title="to page \\d+" href="/posts/(?<next>\\d+)\\?pool_id=\\d+">.*?</a>|<span class="next">.*?</span>)?[^<]*(?:<a class="last" title="to page \\d+" href=".*?">.*?</a>|<span class="last">.*?</span>)[^<]*</li>[^<]*</ul>[^<]*</div>', src),
+                        tags: Grabber.regexToTags('<li class="category-(?<typeId>[^"]+)">(?:\\s*<a class="wiki-link"[^>]* href="[^"]+">\\?</a>)?(?:\\s*<a[^>]* class="search-inc-tag">[^<]+</a>\\s*<a[^>]* class="search-exl-tag">[^<]+</a>)?\\s*<a[^>]* class="search-tag"\\s+[^>]*href="[^"]+"[^>]*>(?<name>[^<]+)</a>.*?*<span[^>]* class="[^"]*post-count[^"]*">(?<count>[^<]+)</span>\\s*</li>', src),
+                        imageUrl: Grabber.regexToConst("url", 'Size: <a href="(?<url>[^"]+?)(?:\\?download=1[^"]*)?"', src),
+                    };
+                },
+            },
+            tagTypes: {
+                url: () => {
+                    return "/tags";
+                },
+                parse: (src) => {
+                    const contents = src.match(/<select[^>]* name="search\[category\]"[^>]*>([\s\S]+)<\/select>/);
+                    if (!contents) {
+                        return { error: "Parse error: could not find the tag type <select> tag" };
+                    }
+                    const results = Grabber.regexMatches('<option value="(?<id>\\d+)">(?<name>[^<]+)</option>', contents[1]);
+                    const types = results.map((r) => ({
+                        id: r.id,
+                        name: r.name.toLowerCase(),
+                    }));
+                    return { types };
+                },
+            },
+            tags: {
+                url: (query, opts) => {
+                    return "/tags?limit=" + opts.limit + "&page=" + query.page;
+                },
+                parse: (src) => {
+                    return {
+                        tags: Grabber.regexToTags('<tr[^>]*>\\s*<td[^>]*>(?<count>\\d+)</td>\\s*<td class="category-(?<typeId>\\d+)">\\s*<a[^>]+>\\?</a>\\s*<a[^>]+>(?<name>.+?)</a>\\s*</td>\\s*<td[^>]*>\\s*(?:<a href="/tags/(?<id>\\d+)/[^"]+">)?', src),
+                    };
+                },
+            },
+            check: {
+                url: () => {
+                    return "/";
+                },
+                parse: (src) => {
+                    return src.indexOf("Running e621") !== -1;
+                },
+            },
+        },
+    },
+};

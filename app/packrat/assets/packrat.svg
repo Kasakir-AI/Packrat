@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a3f6b"/>
+      <stop offset="1" stop-color="#191b33"/>
+    </linearGradient>
+    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6cf8f"/>
+      <stop offset="1" stop-color="#e2a455"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7fd4ff"/>
+      <stop offset="1" stop-color="#4f8dff"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#tile)"/>
+  <!-- ears -->
+  <circle cx="74" cy="84" r="46" fill="url(#fur)"/>
+  <circle cx="182" cy="84" r="46" fill="url(#fur)"/>
+  <circle cx="74" cy="86" r="27" fill="#f29a9a"/>
+  <circle cx="182" cy="86" r="27" fill="#f29a9a"/>
+  <!-- head -->
+  <path d="M128 62 C182 62 208 98 200 138 C193 172 158 196 128 214 C98 196 63 172 56 138 C48 98 74 62 128 62 Z" fill="url(#fur)"/>
+  <!-- eyes -->
+  <circle cx="100" cy="124" r="13" fill="#1b1d33"/>
+  <circle cx="156" cy="124" r="13" fill="#1b1d33"/>
+  <circle cx="104" cy="119" r="4.5" fill="#ffffff"/>
+  <circle cx="160" cy="119" r="4.5" fill="#ffffff"/>
+  <!-- whiskers -->
+  <g stroke="#1b1d33" stroke-width="5" stroke-linecap="round" opacity="0.55">
+    <path d="M92 170 L52 160"/><path d="M94 182 L56 190"/>
+    <path d="M164 170 L204 160"/><path d="M162 182 L200 190"/>
+  </g>
+  <!-- nose -->
+  <ellipse cx="128" cy="196" rx="15" ry="12" fill="#e8607a"/>
+  <!-- the stash: a little picture held in the corner -->
+  <g transform="rotate(-10 196 196)">
+    <rect x="158" y="164" width="76" height="62" rx="10" fill="#ffffff"/>
+    <rect x="165" y="171" width="62" height="48" rx="6" fill="url(#frame)"/>
+    <path d="M165 213 L185 190 L199 204 L210 194 L227 213 L227 213 Q227 219 221 219 L171 219 Q165 219 165 213 Z" fill="#1f4fb8" opacity="0.85"/>
+    <circle cx="213" cy="183" r="6" fill="#fff3b0"/>
+  </g>
+</svg>

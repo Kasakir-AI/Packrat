@@ -1,0 +1,71 @@
+; Settings of Packrat's SITE ARCHIVE (the "Site archive" tab and `packrat run/full/...` on the command line).
+; Copy to packrat.ini in the Packrat folder (next to "Start Packrat.bat") and edit - or just use the
+; Site archive tab, which reads and writes this same file with "Save settings".
+; The Browse / Downloads side keeps its settings in data\settings.json (Settings tab), not here.
+; Precedence: command line > PACKRAT_* environment variables > this file > defaults.
+; (E6AI_* variables and an old e6ai-archiver.ini are still read, so nothing breaks after an upgrade.)
+; Keep your API key OUT of this file; set PACKRAT_API_KEY per session instead (or tick "Remember API key
+; on this PC", which uses the Windows Credential Manager).
+; The window's own choices (e.g. the last mode, the theme) go in a [gui] section at the end.
+[packrat]
+site = e6ai              ; e6ai or e621 (one archive folder per site)
+username = YOUR_NAME_ON_THE_SITE
+; out = D:\e6ai-archive     ; use another folder for e621, e.g. D:\e621-archive
+; rate = 1.0            ; API requests/second (no cap since 1.6; the API docs ask for about 2 or less)
+; workers = 16          ; 1.6: parallel file downloads from the static host (1-64)
+; check_md5 = no         ; 1.6: md5 every file while downloading (verify does it afterwards anyway)
+; verify_after = yes     ; 1.6: full: verify checksums when finished
+; verify_action = delete ; 1.6: bad files: delete (default) or quarantine
+; report_after = yes     ; 1.7: full: write the completeness report (archive vs posts.csv) at the end
+; fetch_tags = yes       ; 1.8: report / full / retry-failed: download the tags export (anonymous, one file)
+;                        ; when it is missing or older than posts.csv, so director folders and per-director
+;                        ; counts work; no = never (the report is then fully offline)
+; (1.8: failed file downloads are appended to failed-downloads.csv / .log in the archive folder;
+;  `retry-failed` re-downloads only those - see README "Failed downloads")
+; min_free_gb = 20
+; on_low_disk = pause     ; 1.9: below min_free_gb: pause and continue once space is freed (default), or stop (exit 4)
+; failure_log_max_mb = 10 ; 1.9: trim failed-downloads.csv/.log above this; still-failed rows are always kept,
+;                         ; the rest go to failed-downloads-archive.*.gz (0 = never trim)
+; log_file = D:\e6ai-archive\logs\packrat.log
+; no_keep_awake = false
+; login = YOUR_NAME_ON_THE_SITE   ; sign-in login name (blank = username); the API key never goes in this file
+; login_retry = true       ; 1.5: when signed in, re-check posts hidden from anonymous visitors
+;
+; --- 1.2: progress window, naming and folders (see README "File names and folders") ---
+; gui = true                       ; same as --gui (simple progress window)
+; name_template = default          ; preset (default | detailed | minimal | short | md5 | full) or a template
+;                                  ; default = {source_name}_{id}.{ext}, max ~60 characters
+; folder_template = director-rating ; preset or template, default = {director}/{rating}
+;                                  ; e.g. {director}/{year}   flat = everything directly in files\
+; multi_director = first           ; first | multi | copy | hardlink
+; director_exclude = conditional_dnp,avoid_posting,sound_warning,loud_sound_warning,epilepsy_warning,eyestrain_warning,jumpscare_warning,3rd-party-edit
+; rating_style = word              ; word (safe/questionable/explicit) or letter (s/q/e)
+; max_items = 3                    ; max values for list fields like {character}
+; multi_sep = ,
+; name_max = 0                     ; 0 = auto (60 with {source_name}, else 120)
+; max_path = 240                   ; keep full paths under this (Windows MAX_PATH is 260)
+; max_outage_hours = 12            ; keep waiting this long when the network/site is down
+;
+; --- 1.3: download order, filters, tiers (see README "Download order") ---
+; order = popular                  ; default | popular | favorites | newest | oldest | smallest-first | balanced
+; min_score = 10
+; min_favs = 5
+; rating = s,q                     ; s = safe, q = questionable, e = explicit
+; director = name1,name2           ; any of these directors
+; filter_tags = wolf -feral        ; all of these tags; -tag excludes
+; max_size_mb = 200
+; exclude_ext = webm,mp4
+; limit_gb = 50                    ; tier: stop after the first 50 GiB of the ordered queue
+; top = 10000                      ; tier: stop after the first N files
+; exports = all                    ; export bundle for full / sync-exports: all | core | comma list
+; api_json = true                  ; 1 request per 100 files to refresh their API JSON before downloading
+; gui_autostart = false            ; true = skip the order/filter panel in the window
+;
+; --- 1.4: the naming keys above also have command-line options ---
+; --director-exclude  --rating-style  --name-max-items (= max_items)  --multi-sep  --name-max  --max-path
+; --login, and --no-config (ignore this file)
+;
+; [gui]                            ; written by the control panel; not read by the command line
+; mode = test
+; theme = system                   ; 1.9: light | dark | system (= follow the Windows app mode)
+; notify = yes                     ; 1.9: desktop notification when a run ends

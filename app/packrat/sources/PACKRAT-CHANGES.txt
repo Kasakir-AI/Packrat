@@ -1,0 +1,9 @@
+Compiled from Grabber's src/sites (Apache-2.0) by tools/build_sources.py.
+Grabber revision: 56f673c6e821567e5a8af5361bf8004c62a55052 Sat Sep 26 14:48:17 2026 +0200
+
+Packrat changes:
+- Gelbooru (0.2): model patched (1 changes, see tools/model_patches.py)
+- E621: model patched (3 changes, see tools/model_patches.py)
+- E621: added site e6ai.net (e6ai)
+- E621: added site e926.net (e926)
+- E621/e621.net: descriptive User-Agent (e621's API rules forbid browser-like ones)

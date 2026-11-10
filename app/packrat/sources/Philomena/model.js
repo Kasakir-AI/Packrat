@@ -1,0 +1,248 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.source = void 0;
+const PREFER_MP4 = false;
+function completeImage(img) {
+    if (img.json_uris) {
+        const uris = JSON.parse(img.json_uris.replace(/&quot;/g, '"'));
+        if ("thumb_small" in uris && uris["thumb_small"].length > 5) {
+            img.preview_url = uris["thumb_small"];
+        }
+        if ("large" in uris && uris["large"].length > 5) {
+            img.sample_url = uris["large"];
+        }
+        if ("full" in uris && uris["full"].length > 5) {
+            img.file_url = uris["full"];
+            if (PREFER_MP4) {
+                img.file_url = img.file_url.replace(".webm", ".mp4");
+            }
+        }
+    }
+    if (!img.preview_url && img.file_url && img.file_url.length >= 5) {
+        img.preview_url = img.file_url
+            .replace("full", "thumb")
+            .replace(".svg", ".png");
+    }
+    if (img.preview_url) {
+        img.preview_url = img.preview_url.replace(".webm", ".gif");
+    }
+    return img;
+}
+function makeTags(tags, tagIds) {
+    const ret = [];
+    for (const i in tags) {
+        ret.push({
+            id: tagIds[i],
+            name: tags[i],
+        });
+    }
+    return ret;
+}
+function searchToArg(search) {
+    let sf;
+    let sd = "desc";
+    const tags = [];
+    const parts = search.split(" ");
+    for (const tag of parts) {
+        const part = tag.trim();
+        if (part.indexOf("order:") === 0) {
+            const orders = part.substr(6).split("_");
+            sf = orders[0];
+            if (orders.length > 1) {
+                sd = orders[1];
+            }
+        }
+        else {
+            tags.push(part);
+        }
+    }
+    let ret = encodeURIComponent(tags.join(" ") || "*");
+    if (sf) {
+        ret += "&sf=" + sf;
+        if (sd) {
+            ret += "&sd=" + sd;
+        }
+    }
+    return ret;
+}
+// Build all "order:XXX" possible modifiers
+const sorts = ["id", "updated_at", "first_seen_at", "aspect_ratio", "faves", "upvotes", "downvotes", "score", "wilson_score", "_score", "width", "height", "comment_count", "tag_count", "pixels", "size", "duration"];
+const sortModifiers = [];
+for (const sort of sorts) {
+    sortModifiers.push("order:" + sort);
+    sortModifiers.push("order:" + sort + "_asc");
+    sortModifiers.push("order:" + sort + "_desc");
+}
+exports.source = {
+    name: "Philomena",
+    modifiers: ["faved_by:", "width:", "height:", "uploader:", "source_url:", "description:", "sha512_hash:", "aspect_ratio:", ...sortModifiers],
+    forcedTokens: [],
+    tagFormat: {
+        case: "lower",
+        wordSeparator: " ",
+    },
+    searchFormat: {
+        and: " AND ",
+        or: " OR ",
+        parenthesis: true,
+        precedence: "and",
+    },
+    auth: {
+        url: {
+            type: "url",
+            fields: [
+                {
+                    id: "apiKey",
+                    key: "key",
+                    type: "password",
+                },
+            ],
+        },
+    },
+    apis: {
+        json: {
+            name: "JSON",
+            auth: [],
+            maxLimit: 50,
+            search: {
+                url: (query, opts) => {
+                    return "/api/v1/json/search/images?per_page=" + opts.limit + "&page=" + query.page + "&q=" + searchToArg(query.search);
+                },
+                parse: (src) => {
+                    const map = {
+                        "created_at": "created_at",
+                        "source": "source_url",
+                        "width": "width",
+                        "md5": "sha512_hash",
+                        "height": "height",
+                        "creator_id": "uploader_id",
+                        "id": "id",
+                        "ext": "format",
+                        "file_url": "representations.full",
+                        "sample_url": "representations.large",
+                        "preview_url": "representations.thumb",
+                        "author": "uploader",
+                        "score": "score",
+                    };
+                    const data = JSON.parse(src);
+                    const images = [];
+                    for (const image of data["images"]) {
+                        const img = Grabber.mapFields(image, map);
+                        img.tags = makeTags(image["tags"], image["tag_ids"]);
+                        img.has_comments = image["comment_count"] > 0;
+                        images.push(completeImage(img));
+                    }
+                    return {
+                        images,
+                        imageCount: data.total,
+                    };
+                },
+            },
+            /*details: {
+                url: (id: string): string => {
+                    return "/api/v1/json/images/" + id;
+                },
+                parse: (src: string): IParsedDetails => {
+                    let data = JSON.parse(src);
+
+                    // Newer versions of Philomena wrap details in an "image" object
+                    if ("image" in data && !("representations" in data)) {
+                        data = data["image"];
+                    }
+
+                    let imageUrl = data["representations"]["full"];
+                    if (PREFER_MP4) {
+                        imageUrl = imageUrl.replace(".webm", ".mp4");
+                    };
+
+                    return {
+                        createdAt: data["created_at"],
+                        imageUrl,
+                        tags: makeTags(data["tags"], data["tag_ids"]),
+                    };
+                },
+            },*/
+            tagTypes: false,
+            tags: {
+                url: (query, opts) => {
+                    return "/api/v1/json/search/tags?per_page=" + opts.limit + "&page=" + query.page + "&q=*";
+                },
+                parse: (src) => {
+                    const map = {
+                        "id": "id",
+                        "name": "name",
+                        "count": "images",
+                        "type": "category",
+                    };
+                    const data = JSON.parse(src);
+                    const tags = [];
+                    for (const raw of data["tags"]) {
+                        const tag = Grabber.mapFields(raw, map);
+                        if (!tag.type) {
+                            tag.type = "general";
+                        }
+                        tags.push(tag);
+                    }
+                    return { tags };
+                },
+            },
+        },
+        html: {
+            name: "Regex",
+            auth: [],
+            forcedLimit: 15,
+            search: {
+                url: (query, opts) => {
+                    if (!query.search || query.search.length === 0) {
+                        return "/images/page/" + query.page;
+                    }
+                    return "/search?per_page=" + opts.limit + "&page=" + query.page + "&q=" + searchToArg(query.search);
+                },
+                parse: (src) => {
+                    return {
+                        images: Grabber.regexToImages('<div class="image-container[^"]*" data-aspect-ratio="[^"]*" data-comment-count="(?<comments>[^"]*)" data-created-at="(?<created_at>[^"]*)" data-downvotes="[^"]*" data-faves="(?<favorites>[^"]*)" data-height="(?<height>[^"]*)" data-image-id="(?<id>[^"]*)" data-image-tag-aliases="(?<tags>[^"]*)" data-image-tags="[^"]*" data-score="(?<score>[^"]*)" data-size="[^"]*" data-source-url="(?<source>[^"]*)"(?: data-tag-count="[^"]*")? data-upvotes="[^"]*" data-uris="(?<json_uris>[^"]*)" data-width="(?<width>[^"]*)">.*?<a[^>]*><picture><img[^>]* src="(?<preview_url>[^"]*)"[^>]*>', src).map(completeImage),
+                        pageCount: Grabber.regexToConst("page", '<a href="(?:/images|/tags/[^\\?]*|/search)\\?[^"]*page=(?<page>\\d+)[^"]*">Last', src),
+                        imageCount: Grabber.regexToConst("count", "of\\s*<strong>\\s*(?<count>[^<]+?)\\s*</strong>\\s*total", src),
+                    };
+                },
+            },
+            details: {
+                url: (id, md5) => {
+                    return "/" + id;
+                },
+                parse: (src) => {
+                    const tags = Grabber.regexToTags('<span class="tag dropdown"(?: data-tag-category="(?<type>[^"]*)")? data-tag-id="(?<id>[^"]+)" data-tag-name="(?<name>[^"]+)" data-tag-slug="[^"]+">', src);
+                    for (const tag of tags) {
+                        if (!tag.type) {
+                            tag.type = "general";
+                        }
+                    }
+                    return { tags };
+                },
+            },
+            tagTypes: false,
+            tags: {
+                url: (query) => {
+                    return "/tags?page=" + query.page;
+                },
+                parse: (src) => {
+                    const tags = Grabber.regexToTags('<span class="tag dropdown"(?: data-tag-category="(?<type>[^"]*)")? data-tag-id="(?<id>\\d+)" data-tag-name="(?<name>.+?)".+?<span class="tag__count">\\s*(?<count>\\d+)\\s*</span>', src);
+                    for (const tag of tags) {
+                        if (!tag.type) {
+                            tag.type = "general";
+                        }
+                    }
+                    return { tags };
+                },
+            },
+            check: {
+                url: () => {
+                    return "/";
+                },
+                parse: (src) => {
+                    return src.indexOf("philomena project") !== -1;
+                },
+            },
+        },
+    },
+};

@@ -1,0 +1,75 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.source = void 0;
+function completeImage(img) {
+    if ((!img.file_url || img.file_url.length < 5) && img.preview_url) {
+        img.file_url = img.preview_url
+            .replace("/thumbnails/", "/images/")
+            .replace("/thumbnail_", "/");
+    }
+    // Use the "video.rule34.us" server for videos to not get CloudFlare hot-linking error
+    const isVideo = img.tags && img.tags.indexOf("video") !== -1;
+    if (isVideo && img.file_url && img.file_url.indexOf("//img") !== -1) {
+        img.file_url = img.file_url.replace(/\/\/img\d+\./, "//video.");
+    }
+    return img;
+}
+exports.source = {
+    name: "Modified Gelbooru (0.1)",
+    modifiers: ["rating:safe", "rating:questionable", "rating:explicit", "user:", "fav:", "fastfav:", "md5:", "source:", "id:", "width:", "height:", "score:", "mpixels:", "filesize:", "date:", "gentags:", "arttags:", "chartags:", "copytags:", "approver:", "parent:", "sub:", "order:id", "order:id_desc", "order:score", "order:score_asc", "order:mpixels", "order:mpixels_asc", "order:filesize", "order:landscape", "order:portrait", "order:favcount", "order:rank", "parent:none", "unlocked:rating", "sort:score"],
+    tagFormat: {
+        case: "lower",
+        wordSeparator: "_",
+    },
+    searchFormat: {
+        and: " ",
+    },
+    auth: {},
+    apis: {
+        html: {
+            name: "Regex",
+            auth: [],
+            forcedLimit: 20,
+            search: {
+                url: (query) => {
+                    const page = query.page - 1;
+                    const search = query.search && query.search.length > 0 ? encodeURIComponent(query.search) : "all";
+                    return "/index.php?r=posts/index&q=" + search + (page === 0 ? '' : "&page=" + page);
+                },
+                parse: (src) => {
+                    const pageMatch = Grabber.regexMatch('<div class="pagination">\\W*(?:<[ab].*>.*<\\/[ab]>\\W*)*(?:<[ab] href="[^"]+page=(?<page_arg>\\d+)".*>.*<\\/[ab]>|<[ab].*>(?<page_real>\\d+)<\\/[ab]>)\\s*<\\/div>', src);
+                    const pageCount = pageMatch && "page_arg" in pageMatch
+                        ? parseInt(pageMatch["page_arg"], 10) + 1
+                        : pageMatch && "page_real" in pageMatch
+                            ? parseInt(pageMatch["page_real"], 10)
+                            : undefined;
+                    return {
+                        images: Grabber.regexToImages('<a id="(?<id>\\d+)" href="[^"]+"><img +src="(?<preview_url>[^"]*thumbnail_(?<md5>[^.]+)\\.[^"]+)" title=" *(?<tags>[^"]*)" .+?</a></div>', src).map(completeImage),
+                        pageCount,
+                        tags: Grabber.regexToTags('<li[^>]*(?:\\sclass="(?<type>[^"]+)-tag")[^>]*>(?:&nbsp;|\\s)*<a[^>]*>\\+</a>(?:&nbsp;|\\s)*<a [^>]*>-</a>(?:&nbsp;|\\s)*(?:<span [^>]*>\\? <a[^>]*>(?<name>[^<]+)</a> (?<count>\\d+)</span>|<a[^>]*>(?<name_2>[^<]+)</a>\\s*<small[^>]*>(?<count_2>\\d+)</small>)</li>', src),
+                    };
+                },
+            },
+            details: {
+                url: (id, md5) => {
+                    return "/index.php?r=posts/view&id=" + id;
+                },
+                parse: (src) => {
+                    return {
+                        tags: Grabber.regexToTags('<li class="(?<type>[^"]+)-tag"[^>]*><a href="[^"]*"[^>]*>(?<name>[^<]+)</a> <small[^>]*>(?<count>\\d+)</small></li>', src),
+                        imageUrl: Grabber.regexToConst("url", '<a href="(?<url>[^"]+)"><li[^>]*>Original</li></a>', src),
+                    };
+                },
+            },
+            check: {
+                url: () => {
+                    return "/";
+                },
+                parse: (src) => {
+                    return src.search(/Running modified Gelbooru(?: Beta)? 0\.1/) !== -1
+                        || src.search(/Running modified <a[^>]*>Gelbooru<\/a>(?: Beta)? 0\.1/) !== -1;
+                },
+            },
+        },
+    },
+};

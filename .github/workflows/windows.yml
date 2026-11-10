@@ -1,0 +1,135 @@
+name: Windows test and build
+
+# Runs on GitHub's Windows machines every time main (or the packrat-3.1 work branch) changes:
+#   1. the real start-up scripts (Windows PowerShell 5.1), the automatic tests, and a self-test of the window
+#   2. builds Packrat.exe and tests that too
+# The results (screenshots, the built program) are attached to the run as "artifacts".
+
+on:
+  push:
+    branches: [main, packrat-3.1]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Start-up scripts, tests and window self-test
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Check Python (Windows PowerShell 5.1)
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File app\run.ps1 -Mode check-python
+      - name: First start - create .venv, install, run the empty download list
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File app\run.ps1 -Mode batch
+      - name: Second start is quick and reuses .venv
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File app\run.ps1 -Mode batch
+      - name: Automatic tests
+        shell: cmd
+        run: |
+          .venv\Scripts\python.exe -m pip install pytest
+          cd app
+          ..\.venv\Scripts\python.exe -m pytest -q
+      - name: Window self-test on a real Windows desktop
+        shell: pwsh
+        run: |
+          $env:PACKRAT_HOME = "$env:RUNNER_TEMP\packrat-home"
+          $env:PACKRAT_SMOKE_VIDEO = "$PWD\app\tests\fixtures\sample.webm"
+          New-Item -ItemType Directory -Force $env:PACKRAT_HOME | Out-Null
+          $p = Start-Process -FilePath ".venv\Scripts\python.exe" -ArgumentList "-m","packrat","gui","--smoke","$PWD\smoke-venv" -Wait -PassThru -NoNewWindow
+          if (Test-Path smoke-venv\smoke.json) { Get-Content smoke-venv\smoke.json }
+          if (Test-Path "$env:PACKRAT_HOME\data\logs\packrat-window.log") { Get-Content "$env:PACKRAT_HOME\data\logs\packrat-window.log" -Tail 40 }
+          exit $p.ExitCode
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-python
+          path: smoke-venv
+
+  build:
+    name: Build Packrat.exe
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write        # to attach the downloads to a release (main only)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        shell: cmd
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e app pyinstaller pywin32
+      - name: Build
+        shell: cmd
+        run: |
+          cd app
+          python -m PyInstaller --noconfirm packrat.spec
+      - name: Add the manuals
+        shell: pwsh
+        run: |
+          Copy-Item -Recurse docs app\dist\Packrat\docs
+          Copy-Item "START HERE - README.txt" app\dist\Packrat\
+          New-Item -ItemType Directory -Force out\exe | Out-Null
+          Move-Item app\dist\Packrat out\exe\Packrat
+      - name: Test the built program (commands)
+        shell: cmd
+        run: |
+          out\exe\Packrat\packrat-cli.exe --help
+          out\exe\Packrat\packrat-cli.exe -m packrat batch
+      - name: Test the built program (window)
+        shell: pwsh
+        run: |
+          $env:PACKRAT_HOME = "$env:RUNNER_TEMP\packrat-home"
+          $env:PACKRAT_SMOKE_VIDEO = "$PWD\app\tests\fixtures\sample.webm"
+          New-Item -ItemType Directory -Force $env:PACKRAT_HOME | Out-Null
+          $p = Start-Process -FilePath "out\exe\Packrat\Packrat.exe" -ArgumentList "gui","--smoke","$PWD\smoke-exe" -Wait -PassThru
+          if (Test-Path smoke-exe\smoke.json) { Get-Content smoke-exe\smoke.json }
+          if (Test-Path "$env:PACKRAT_HOME\data\logs\packrat-window.log") { Get-Content "$env:PACKRAT_HOME\data\logs\packrat-window.log" -Tail 40 }
+          exit $p.ExitCode
+      - name: Remove test leftovers from the program folder
+        shell: pwsh
+        run: |
+          foreach ($d in "data", "downloads", "archive") { if (Test-Path "out\exe\Packrat\$d") { Remove-Item -Recurse -Force "out\exe\Packrat\$d" } }
+      - name: Build the Python zip as well
+        shell: cmd
+        run: python app\tools\build_dist.py out\zip\Packrat-python.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-exe
+          path: smoke-exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Packrat-windows
+          path: out/exe
+          compression-level: 9
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Packrat-python-zip
+          path: out/zip
+      # On main: put both downloads on the Releases page, as "v<version>". The README links to
+      # releases/latest/download/..., so its download links always give the newest build.
+      - name: Publish the downloads as a release
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = (Select-String -Path app\packrat\__init__.py -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
+          7z a -tzip -mx=7 Packrat-windows.zip .\out\exe\Packrat | Select-Object -Last 3
+          Copy-Item out\zip\Packrat-python.zip Packrat-python.zip
+          gh release view "v$v" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "v$v" --title "Packrat $v" --target $env:GITHUB_SHA --latest --notes "What changed: see docs/CHANGELOG.md, section $v. Download Packrat-windows.zip (no Python needed) or Packrat-python.zip."
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+          gh release upload "v$v" Packrat-windows.zip Packrat-python.zip --clobber
+          exit $LASTEXITCODE
