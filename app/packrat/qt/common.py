@@ -18,6 +18,7 @@ from .. import paths
 Qt = QtCore.Qt
 log = logging.getLogger("packrat")
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
+FORM_MAX_WIDTH = 1100    # settings-style forms stop growing here; wider fields only spread the eye
 
 # ---- colours -------------------------------------------------------------------------------------
 PALETTES = {

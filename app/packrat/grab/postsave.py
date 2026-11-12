@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shlex
 import shutil
 import sqlite3
@@ -33,14 +34,37 @@ def find_program(name: str, configured: str = "") -> str | None:
     return shutil.which(name)
 
 
-def path_tokens(text: str, path: str) -> str:
+def path_tokens(text: str, path: str, how: str = "") -> str:
+    """Put the saved file's path into a log line / command / SQL query.
+    how="command": an unquoted %path% / %dir% is put in quotes (a file name can hold '&' or spaces from its
+    tags, which would otherwise split the command); how="sql": quotes inside the path are escaped."""
     p = str(Path(path))
-    return (text.replace("%path:nobackslash%", p.replace("\\", "/")).replace("%path%", p)
-            .replace("%dir%", str(Path(path).parent)))
+    for tok, v in (("%path:nobackslash%", p.replace("\\", "/")), ("%path%", p), ("%dir%", str(Path(path).parent))):
+        if how == "command":
+            text = re.sub(r'(?<!")' + re.escape(tok) + r'(?!")', lambda _m, v=v: f'"{v}"', text)
+        elif how == "sql":
+            v = v.replace("'", "''")
+        text = text.replace(tok, v)
+    return text
 
 
-def sql_escape(v) -> str:
-    return "'" + str(v).replace("\\", "\\\\").replace("'", "''") + "'"
+def sql_escape(v, backslashes: bool = True) -> str:
+    """A quoted SQL string. Only MySQL treats backslashes as escapes; SQLite and PostgreSQL store them as is."""
+    v = str(v)
+    if backslashes:
+        v = v.replace("\\", "\\\\")
+    return "'" + v.replace("'", "''") + "'"
+
+
+# What the command line treats as syntax: on Windows cmd.exe (& | < > ^ chain / redirect / escape, " quotes,
+# % ! expand variables), elsewhere the quotes and backslash shlex.split reads. Plus line breaks.
+_SHELL_UNSAFE = re.compile(r'[&|<>^"%!\r\n\x00]' if os.name == "nt" else r'["\'\\\r\n\x00]')
+
+
+def shell_safe(v) -> str:
+    """A value that comes from a site (a tag, a title, ...) made harmless inside a command: a tag such as
+    'black_&_white', or one crafted as 'x" & del ...', must never end the command or start another."""
+    return _SHELL_UNSAFE.sub("_", str(v))
 
 
 class PostSave:
@@ -343,19 +367,23 @@ class PostSave:
     def _tag_cmd(self, cmd, sql, tag, path):
         from .tags import KNOWN_TYPES
         num = KNOWN_TYPES.index(tag.type) if tag.type in KNOWN_TYPES else 0
-        repl = lambda s, esc=False: (s.replace("%tag%", sql_escape(tag.name) if esc else tag.name)  # noqa: E731
-                                      .replace("%original%", tag.name).replace("%type%", tag.type or "general")
-                                      .replace("%number%", str(num)))
+        def repl(s, tag_value, original):
+            return (s.replace("%tag%", tag_value).replace("%original%", original)
+                    .replace("%type%", tag.type or "general").replace("%number%", str(num)))
         if cmd:
-            self._exec(path_tokens(repl(cmd), path), "tag")
+            safe = shell_safe(tag.name)
+            self._exec(path_tokens(repl(cmd, safe, safe), path, "command"), "tag")
         if sql:
-            self._sql_exec(path_tokens(repl(sql, True), path))
+            self._sql_exec(path_tokens(repl(sql, self._sql_quote(tag.name), self._sql_quote(tag.name)[1:-1]), path,
+                                       "sql"))
 
     def run_command(self, fmt: str, toks: dict, what: str, path: str = "", count: int = 0) -> None:
-        out = F.Filename(fmt).path(toks, self.st, "", count, 0) if toks else [fmt]
+        fn = F.Filename(fmt)
+        fn.value_filter = shell_safe
+        out = fn.path(toks, self.st, "", count, 0) if toks else [fmt]
         if not out:
             return
-        self._exec(path_tokens(out[0], path) if path else out[0], what)
+        self._exec(path_tokens(out[0], path, "command") if path else out[0], what)
 
     def _exec(self, cmd: str, what: str) -> None:
         if self.st.get("Exec/dry_run"):
@@ -401,10 +429,13 @@ class PostSave:
 
     def sql(self, fmt: str, toks: dict, path: str = "", count: int = 0) -> None:
         fn = F.Filename(fmt)
-        fn.escape = sql_escape
+        fn.escape = self._sql_quote
         out = fn.path(toks, self.st, "", count, 0)
         if out:
-            self._sql_exec(path_tokens(out[0], path))
+            self._sql_exec(path_tokens(out[0], path, "sql"))
+
+    def _sql_quote(self, v) -> str:
+        return sql_escape(v, backslashes=(self.st.get("Exec/SQL/driver") or "QSQLITE") == "QMYSQL")
 
     def _sql_exec(self, q: str) -> None:
         if self.st.get("Exec/dry_run"):

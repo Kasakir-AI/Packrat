@@ -86,7 +86,7 @@ class SitePicker(QtWidgets.QDialog):
             it.setCheckState(Qt.CheckState.Checked if s.host in chosen else Qt.CheckState.Unchecked)
             ic = s.source.icon
             if ic:
-                it.setIcon(QtGui.QIcon(str(ic)))
+                it.setIcon(_square_icon(str(ic), self.list.iconSize().width(), self.list.devicePixelRatioF()))
             self.list.addItem(it)
             if s.host == focus:
                 focus_row = self.list.count() - 1
@@ -553,3 +553,22 @@ class LoginBrowser(QtWidgets.QDialog):
         page.deleteLater()
         QtCore.QTimer.singleShot(500, profile.deleteLater)      # after the page is gone
         super().done(r)
+
+
+def _square_icon(path: str, size: int, dpr: float = 1.0) -> QtGui.QIcon:
+    """Site icons come in all sizes and shapes; Qt sizes the icon column by each picture, so names would not
+    line up. Draw every icon centred on a square of the same size (sharp on high-DPI screens too)."""
+    ico = QtGui.QIcon(path)
+    sizes = ico.availableSizes()
+    src = ico.pixmap(max(sizes, key=lambda z: z.width() * z.height()) if sizes else QtCore.QSize(64, 64))
+    px = max(1, round(size * dpr))
+    canvas = QtGui.QPixmap(px, px)
+    canvas.fill(Qt.GlobalColor.transparent)
+    if not src.isNull():
+        src = src.scaled(px, px, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        src.setDevicePixelRatio(1.0)
+        p = QtGui.QPainter(canvas)
+        p.drawPixmap((px - src.width()) // 2, (px - src.height()) // 2, src)
+        p.end()
+    canvas.setDevicePixelRatio(dpr)
+    return QtGui.QIcon(canvas)

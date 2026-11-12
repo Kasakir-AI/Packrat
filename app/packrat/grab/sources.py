@@ -330,6 +330,20 @@ class Site:
             return "https://" + url[7:]
         return url
 
+    def owns_url(self, url: str) -> bool:
+        """The address is on this site or one of its subdomains (static1.e621.net for e621.net, cdn.donmai.us for
+        danbooru.donmai.us). Login headers go only there, never to a file host elsewhere."""
+        host = (urlsplit(url).hostname or "").lower()
+        mine = self.host.split("/")[0].split(":")[0].lower()
+        if not host or host == mine:
+            return True
+        if mine.replace(".", "").isdigit():
+            return False
+        labels = mine.split(".")
+        keep = 3 if len(labels) >= 3 and len(labels[-1]) == 2 and len(labels[-2]) <= 3 else 2   # x.co.uk, x.com.au
+        base = ".".join(labels[-keep:])
+        return host == base or host.endswith("." + base)
+
     def fix_login_url(self, url: str) -> str:
         """Grabber UrlLogin::complementUrl: add the URL auth fields (login=..&api_key=..)."""
         auth = self._active_auth()
@@ -492,9 +506,11 @@ class Site:
         if referer:
             h["Referer"] = referer
         h.update(headers or {})
-        self._apply_auth_headers(h)
+        own = self.owns_url(url)
+        if own:
+            self._apply_auth_headers(h)
         auth = self._active_auth()
-        if (auth and auth.get("type") == "oauth1" and "Authorization" not in (headers or {})
+        if (own and auth and auth.get("type") == "oauth1" and "Authorization" not in (headers or {})
                 and self.auth_value("accessToken") and self.auth_value("accessTokenSecret")):
             from .login import oauth1_header
             h["Authorization"] = oauth1_header(method, url, self.auth_value("consumerKey"),
@@ -526,7 +542,7 @@ class Site:
                             _short(url), wait, attempt, retries)
                 _sleep(wait, cancel)
                 continue
-            if r.status_code == 401 and self._oauth_refreshable() and attempt == 0:
+            if r.status_code == 401 and own and self._oauth_refreshable() and attempt == 0:
                 r.close()
                 attempt += 1
                 if self._oauth_refresh():

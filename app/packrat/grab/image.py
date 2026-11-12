@@ -261,7 +261,9 @@ class Image:
         self.medias = medias
         self._apply_medias()
         if d.get("page_url"):
-            self.page_url = site.fix_url(site.fix_login_url(d["page_url"]))
+            # never with the login fields (login=..&api_key=..): page_url ends up in .json sidecars, log files, file
+            # names, the clipboard and Referer headers. Requests made from it get them in Site._do_url_object.
+            self.page_url = site.fix_url(d["page_url"])
         self.data = data
         # complete missing tag types from the site's tag database
         unknown = [t.name for t in self.tags if not t.type]

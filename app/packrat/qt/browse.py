@@ -398,7 +398,7 @@ class SearchTab(QtWidgets.QWidget):
         self.sites_btn = K.button("", self.choose_sites, ico="globe", tip="Choose which sites this tab searches")
         self.query = QtWidgets.QLineEdit(query)
         self.query.setObjectName("search")
-        self.query.setPlaceholderText("Search tags, e.g.  landscape   or   cat_ears blue_eyes   - then press Enter")
+        self.query.setPlaceholderText("Search tags, e.g.  landscape   or   cat_ears blue_eyes")
         self.query.setClearButtonEnabled(True)
         self.query.returnPressed.connect(lambda: self.search())
         self.completer = TagCompleter(self.query, self._complete)
@@ -456,6 +456,8 @@ class SearchTab(QtWidgets.QWidget):
         self.wiki_btn.setVisible(False)
         left = K.widget(K.vbox(K.label("Tags", role="heading"), (self.tags, 1), self.wiki_btn, spacing=6))
         left.setMinimumWidth(150)
+        left.setVisible(False)          # shown with the first results: an empty box only takes room
+        self.tags_panel = left
 
         # right: grid / message
         size = max(90, int(st.get("thumbnailSize") or 180))
@@ -682,6 +684,7 @@ class SearchTab(QtWidgets.QWidget):
                 it.setData(Qt.ItemDataRole.UserRole, (name, typ or "general"))
                 self.tags.addItem(it)
             self._color_tags()
+            self.tags_panel.setVisible(self.tags.count() > 0 or bool(self._wiki))
         n = len(res.items)
         bits = [f"Page {res.page}: {n} picture{'s' if n != 1 else ''}"]
         if res.filtered and app.st.get("showFilteredImagesCount", True):

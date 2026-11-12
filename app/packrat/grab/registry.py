@@ -184,7 +184,7 @@ def install_zip(data: bytes, name: str = "", hash_: str = "", registry_url: str 
             raise ValueError("no model.js in the zip: not a Grabber source")
     else:
         raise ValueError("no model.js in the zip: not a Grabber source")
-    folder = "".join(c for c in folder if c not in '\\/:*?"<>|').strip() or "Imported source"
+    folder = "".join(c for c in folder if c not in '\\/:*?"<>|').strip().strip(".") or "Imported source"
     dest = paths.user_sources_dir() / folder
     tmp = dest.with_name(dest.name + ".installing")
     shutil.rmtree(tmp, ignore_errors=True)
@@ -226,6 +226,8 @@ def install_zip(data: bytes, name: str = "", hash_: str = "", registry_url: str 
 
 
 def uninstall(folder_name: str) -> bool:
+    if not folder_name.strip(". ") or any(c in folder_name for c in "/\\"):
+        return False   # never the sources folder itself or one outside it
     d = paths.user_sources_dir() / folder_name
     ok = False
     if d.is_dir():

@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.2.1 (2026-11-12) - security fixes
+
+### Security
+- **Commands after saving can no longer be hijacked by a tag.** Settings > Commands puts tag names and other
+  values from the site into a command line. On Windows that line runs through cmd.exe, so a tag such as
+  `black_&_white` split the command, and a crafted tag could start any program. Values from sites now have the
+  characters that end or chain a command (`& | < > ^ " % !`) replaced with `_`; an unquoted `%path%` / `%dir%`
+  is put in quotes, so a file name with `&` or spaces stays one argument.
+- **Database commands:** `%original%` and `%path%` are escaped too (a tag or file name with `'` broke the
+  query). SQLite and PostgreSQL no longer get doubled backslashes in paths (only MySQL wants that).
+- **Your API key no longer ends up in picture page addresses.** On sites that log in with `login=..&api_key=..`
+  in the address, the key was added to every picture's page address, which is written into `.json` sidecars,
+  log files and `%url_page%` file names, copied by "Copy the page address" and sent as the Referer to file
+  servers. The key is now only added to the requests that need it.
+- **Logins stay on their site.** The password / API key / token header was sent with every request, including
+  file downloads from other hosts. It now goes only to the site and its own subdomains (cdn.donmai.us for
+  Danbooru, static1.e621.net for e621, ...).
+- A source registry can no longer name a source `..` (installing it replaced Packrat's data folder).
+
+### Window
+- Browse: the empty Tags box is hidden until a search shows tags; the search hint is no longer cut off.
+- Sites and logins: site names line up again (icons of different sizes pushed some to the right).
+- Settings and Site archive: forms stop growing at a readable width on wide screens.
+
 ## 3.2.0 (2026-11-10) - the download engine
 
 Measured first: searching and naming files were already fast (a result page costs 30-70 ms of work next to about

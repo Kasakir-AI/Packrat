@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "packrat"
-version = "3.2.0"
+version = "3.2.1"
 description = "Browse, download and organize images from many sites (Grabber's sources), plus a complete e6ai / e621 archive"
 requires-python = ">=3.11"
 dependencies = [
