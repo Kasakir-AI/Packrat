@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.2.2 (2026-11-12) - Mac fixes
+
+### Fixed
+- **Mac: typing in Packrat did nothing, and it had no Dock icon or menu.** The Mac app was marked as a background
+  program, so macOS never gave it the keyboard: the cursor blinked in the search box, but the keys went to the app
+  that was active before. Packrat is now a normal app, with its Dock icon and menu bar. Every build checks for this.
+
+### New
+- **Opening Packrat again brings its window back.** When Packrat is running hidden next to the clock (Windows) or in
+  the menu bar (Mac), starting it again from Spotlight, Finder, the Dock, the Start menu or a shortcut shows the
+  window instead of seeming to do nothing. On Windows the window also comes to the front reliably.
+
 ## 3.2.1 (2026-11-12) - security fixes, and Packrat for Mac
 
 ### Mac

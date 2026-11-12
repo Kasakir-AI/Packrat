@@ -165,6 +165,11 @@ jobs:
         run: python -m PyInstaller --noconfirm packrat.spec
       - name: Test the built app (commands and window self-test)
         run: |
+          # a background-only app gets no Dock icon, no menu bar and no keyboard (typing goes elsewhere)
+          for k in LSBackgroundOnly LSUIElement; do
+            v=$(plutil -extract $k raw app/dist/Packrat.app/Contents/Info.plist 2>/dev/null || echo false)
+            if [ "$v" = "true" ]; then echo "Info.plist: $k is true - Packrat would be invisible"; exit 1; fi
+          done
           app/dist/Packrat.app/Contents/MacOS/packrat-cli --version
           export PACKRAT_HOME="$RUNNER_TEMP/packrat-home"
           export PACKRAT_SMOKE_VIDEO="$PWD/app/tests/fixtures/sample.webm"
