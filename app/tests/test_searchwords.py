@@ -100,3 +100,14 @@ def test_menus_read_and_write_the_search_box():
     assert SW.menu_value("cat rating:sfw rating:explicit", "rating") is None      # not one of the menu's choices
     assert SW.with_word("cat order:score rating:sfw", "sort", "order:random") == "cat rating:sfw order:random"
     assert SW.with_word("cat -rating:explicit", "rating", "") == "cat"
+
+
+def test_full_name_sites_explain_an_empty_search():
+    """Zerochan writes tags as full names and reads a space as the end of a tag: say how to write the search."""
+    from packrat.grab.sources import Site
+    z = SimpleNamespace(name="Zerochan", source=SimpleNamespace(meta={"searchFormat": {"and": ", "}}))
+    assert "Hatsune_Miku" in Site._name_hint(z, "Hatsune Miku")[0]
+    assert "Rem_(Re:Zero)" in Site._name_hint(z, "Rem")[0]
+    assert Site._name_hint(z, "order:fav") == []
+    assert Site._name_hint(SimpleNamespace(name="e621", source=SimpleNamespace(meta={"searchFormat": {"and": " "}})),
+                           "wolf solo") == []

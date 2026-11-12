@@ -652,12 +652,30 @@ class Site:
             pr = self._page_from(res, search, page, k, lim)
             if tr is not None:
                 pr.notes = tr.notes
+            if not pr.images and page == 1:
+                pr.notes = list(pr.notes) + self._name_hint(q)
                 if tr.checks:            # what the site couldn't do itself
                     kept = [im for im in pr.images if tr.keeps(im)]
                     pr.filtered += len(pr.images) - len(kept)
                     pr.images = kept
             return pr
-        return PageResult(self, search, page, error="; ".join(errors) or "no usable API for this site")
+        pr = PageResult(self, search, page, error="; ".join(errors) or "no usable API for this site")
+        pr.notes = (tr.notes if tr is not None else []) + self._name_hint(q)
+        return pr
+
+    def _name_hint(self, q: str) -> list:
+        """Sites whose tags are full names (Zerochan: "Hatsune Miku", "Rem (Re:Zero)") read every space as the end of a
+        tag. When such a search finds nothing, say how to write it."""
+        if "," not in str((self.source.meta.get("searchFormat") or {}).get("and", "")):
+            return []
+        words = [w for w in q.split() if ":" not in w and not w.startswith("-")]
+        if len(words) >= 2:
+            return [f"{self.name} reads each word as a separate tag. A name with several words is written with "
+                    f"underscores: {'_'.join(words)}"]
+        if len(words) == 1:
+            return [f"{self.name} found nothing for '{words[0]}'. Its tags are full names, sometimes with the series "
+                    f"(e.g. Rem_(Re:Zero)): type a few letters and pick a suggestion, or look the name up on the site."]
+        return []
 
     def _parsed_search(self, q: str):
         ops = q.split()
