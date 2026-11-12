@@ -273,6 +273,10 @@ class Site:
             ua = ua.replace("%userAgentID%", str(uid))
         if self.is_e621_family() and any(m in ua.lower() for m in BROWSER_UA_MARKERS):
             ua = f"Packrat/{mm} (by {username} on {self.host})"
+        elif self.source.name.startswith("Danbooru") and any(m in ua.lower() for m in BROWSER_UA_MARKERS):
+            # Grabber's Danbooru defaults pose as Firefox; Danbooru's bot check refuses a program that claims to be a
+            # browser (HTTP 403) and accepts one that says what it is, as its API rules ask
+            ua = f"Packrat/{mm} (by {username})"
         return ua
 
     def headers(self) -> dict:
@@ -652,12 +656,30 @@ class Site:
             pr = self._page_from(res, search, page, k, lim)
             if tr is not None:
                 pr.notes = tr.notes
+            if not pr.images and page == 1:
+                pr.notes = list(pr.notes) + self._name_hint(q)
                 if tr.checks:            # what the site couldn't do itself
                     kept = [im for im in pr.images if tr.keeps(im)]
                     pr.filtered += len(pr.images) - len(kept)
                     pr.images = kept
             return pr
-        return PageResult(self, search, page, error="; ".join(errors) or "no usable API for this site")
+        pr = PageResult(self, search, page, error="; ".join(errors) or "no usable API for this site")
+        pr.notes = (tr.notes if tr is not None else []) + self._name_hint(q)
+        return pr
+
+    def _name_hint(self, q: str) -> list:
+        """Sites whose tags are full names (Zerochan: "Hatsune Miku", "Rem (Re:Zero)") read every space as the end of a
+        tag. When such a search finds nothing, say how to write it."""
+        if "," not in str((self.source.meta.get("searchFormat") or {}).get("and", "")):
+            return []
+        words = [w for w in q.split() if ":" not in w and not w.startswith("-")]
+        if len(words) >= 2:
+            return [f"{self.name} reads each word as a separate tag. A name with several words is written with "
+                    f"underscores: {'_'.join(words)}"]
+        if len(words) == 1:
+            return [f"{self.name} found nothing for '{words[0]}'. Its tags are full names, sometimes with the series "
+                    f"(e.g. Rem_(Re:Zero)): type a few letters and pick a suggestion, or look the name up on the site."]
+        return []
 
     def _parsed_search(self, q: str):
         ops = q.split()
