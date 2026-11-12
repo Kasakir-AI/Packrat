@@ -32,6 +32,7 @@ def _one_argument(cmd, value_start):
     Elsewhere there is no shell (shlex.split + a list): the value can't unbalance the quotes."""
     if os.name == "nt":
         outside_quotes = re.sub(r'"[^"]*"', "", cmd)     # inside "..." cmd.exe takes & | < > literally
+        assert '"x' not in cmd and 'x"' not in cmd                # no quote from the site's value survives
         assert cmd.count('"') % 2 == 0 and not re.search(r"[&|<>^]", outside_quotes)
     else:
         assert isinstance(cmd, list) and any(a.startswith(value_start) for a in cmd)
