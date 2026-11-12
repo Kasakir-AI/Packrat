@@ -43,3 +43,18 @@ def test_short_values_are_stored_as_before(monkeypatch):
     monkeypatch.setattr(secrets, "_mem", {})
     secrets.set_secret("s", "apiKey", "abc123")
     assert kr.d == {(secrets.SERVICE, "s|apiKey"): "abc123"}
+
+
+def test_danbooru_gets_an_honest_user_agent():
+    """Grabber's Danbooru defaults pose as Firefox; Danbooru's bot check refuses that (403). Packrat says what it is."""
+    from types import SimpleNamespace
+
+    from packrat.grab.sources import Site
+    fake = SimpleNamespace(host="danbooru.donmai.us", source=SimpleNamespace(name="Danbooru (2.0)"),
+                           is_e621_family=lambda: False,
+                           setting=lambda k, d=None: ("Mozilla/5.0 (Windows NT 10.0; rv:153.0) Gecko/20100101 Firefox/153.0 "
+                                                      "Grabber/%version%") if k == "Headers/User-Agent" else d)
+    ua = Site.user_agent(fake)
+    assert ua.startswith("Packrat/") and "mozilla" not in ua.lower()
+    other = SimpleNamespace(**{**vars(fake), "source": SimpleNamespace(name="Gelbooru (0.2)")})
+    assert "Mozilla" in Site.user_agent(other)        # other sites keep their own defaults

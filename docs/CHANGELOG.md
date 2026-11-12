@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.3.1 (2026-11-12) - Danbooru works again
+
+### Fixed
+- **Danbooru refused every search (HTTP 403) without a login.** The Danbooru settings Packrat took over from Grabber
+  introduced Packrat as Firefox; Danbooru's bot check refuses programs that claim to be a browser. Packrat now says
+  what it is ("Packrat/3.3 (by your name)"), as Danbooru's API rules ask, and searches work again without an
+  account. A login from the built-in browser keeps its browser name.
+- **Zerochan searches that found nothing now say why.** Zerochan's tags are full names and a space ends a tag:
+  `Hatsune Miku` is two tags there (Packrat now says to write `Hatsune_Miku`), and a short name like `Rem` matches no
+  tag (Packrat suggests the full name, e.g. `Rem_(Re:Zero)`). The same help appears on other sites that write tags
+  this way.
+
 ## 3.3.0 (2026-11-12) - one search language for every site, and a site setup wizard
 
 ### New

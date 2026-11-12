@@ -273,6 +273,10 @@ class Site:
             ua = ua.replace("%userAgentID%", str(uid))
         if self.is_e621_family() and any(m in ua.lower() for m in BROWSER_UA_MARKERS):
             ua = f"Packrat/{mm} (by {username} on {self.host})"
+        elif self.source.name.startswith("Danbooru") and any(m in ua.lower() for m in BROWSER_UA_MARKERS):
+            # Grabber's Danbooru defaults pose as Firefox; Danbooru's bot check refuses a program that claims to be a
+            # browser (HTTP 403) and accepts one that says what it is, as its API rules ask
+            ua = f"Packrat/{mm} (by {username})"
         return ua
 
     def headers(self) -> dict:
