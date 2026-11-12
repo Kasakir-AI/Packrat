@@ -327,6 +327,11 @@ class MainWindow(QtWidgets.QMainWindow):
         v.activateWindow()
         return v
 
+    def open_site_wizard(self, host: str = ""):
+        """'Set up a site': log in to a popular site step by step (Help, Sites and logins, the Browse menu)."""
+        from .wizard import SiteWizard
+        SiteWizard(self, self, host).exec()
+
     def open_sites(self, focus: str = "", pick_for=None):
         from .sites import SitePicker
         dlg = SitePicker(self, self, focus=focus, selected=pick_for)

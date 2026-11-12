@@ -68,6 +68,7 @@ class PageResult:
     url: str = ""
     filtered: int = 0
     status: int = 0
+    notes: list = field(default_factory=list)   # what Packrat did for this site (searchwords.translate)
 
     def info(self) -> dict:
         """'previous' page information for cursor paging (Grabber PageInformation)."""
@@ -623,6 +624,12 @@ class Site:
         removed = set(str(self.setting("search/remove", "") or "").split())
         words = [w for w in search.split() if w not in removed] + [w for w in added if w not in search.split()]
         q = " ".join(words)
+        tr = None
+        from .settings import shared
+        if shared().get("Search/translateWords", True):
+            from .searchwords import translate
+            tr = translate(q, self)      # order:popular, rating:sfw ... in this site's own words
+            q = tr.query
         errors = []
         for k in self.api_keys():
             a = self.source.meta["apis"][k]
@@ -642,7 +649,14 @@ class Site:
                 if str(res["error"]).startswith("HTTP 403"):
                     break
                 continue
-            return self._page_from(res, search, page, k, lim)
+            pr = self._page_from(res, search, page, k, lim)
+            if tr is not None:
+                pr.notes = tr.notes
+                if tr.checks:            # what the site couldn't do itself
+                    kept = [im for im in pr.images if tr.keeps(im)]
+                    pr.filtered += len(pr.images) - len(kept)
+                    pr.images = kept
+            return pr
         return PageResult(self, search, page, error="; ".join(errors) or "no usable API for this site")
 
     def _parsed_search(self, q: str):

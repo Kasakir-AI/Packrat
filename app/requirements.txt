@@ -5,3 +5,4 @@ beautifulsoup4>=4.11
 soupsieve>=2.3
 keyring>=23
 PySide6>=6.7
+browser_cookie3>=0.20
