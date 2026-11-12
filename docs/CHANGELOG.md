@@ -1,6 +1,15 @@
 # Changelog
 
-## 3.2.1 (2026-11-12) - security fixes
+## 3.2.1 (2026-11-12) - security fixes, and Packrat for Mac
+
+### Mac
+- **Packrat runs on Macs.** A new download, **Packrat-macOS.dmg**: open it and drag Packrat into Applications
+  (Apple Silicon Macs, M1 and newer, macOS 12+). Settings live in `~/Library/Application Support/Packrat`, pictures
+  go to Pictures > Packrat, logins to the Keychain, and the icon sits in the menu bar. Not on the Mac yet: hourly
+  monitor checks while Packrat is closed, and desktop / Start menu shortcuts.
+- The Python download has a **Start Packrat.command** for Mac and Linux (Intel Macs use this).
+- Every change is now tested on GitHub's Mac machines too (tests, the app build and the window self-test), and the
+  .dmg is put on the Releases page with the Windows downloads.
 
 ### Security
 - **Commands after saving can no longer be hijacked by a tag.** Settings > Commands puts tag names and other

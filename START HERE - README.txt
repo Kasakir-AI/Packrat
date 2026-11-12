@@ -8,12 +8,16 @@ Safebooru, Sankaku, Zerochan, Pixiv and many more). It can name and sort
 the files by artist, character, series and so on, watch searches for new
 pictures, play videos, and keep a complete copy of e6ai or e621.
 
-You need: Windows 10 or 11 and an internet connection.
+You need: Windows 10 or 11, or a Mac with macOS 12 or newer, and an
+internet connection.
 
-There are two downloads. Both are the same program.
+There are three downloads. All are the same program.
 
   A. "Packrat-windows"  - has Packrat.exe. Nothing else to install.
   B. "Packrat-python"   - smaller; needs Python installed (steps below).
+                          Works on Windows, Mac and Linux.
+  C. "Packrat-macOS.dmg" - the Mac app (Apple Silicon: M1 and newer).
+                          Nothing else to install.
 
 Keep the whole folder together. Put it somewhere simple such as
 C:\Packrat - NOT inside OneDrive, Dropbox, Program Files or a network drive.
@@ -65,6 +69,34 @@ STEP 3 - Start
   The first-start assistant can put a Packrat icon on your desktop.
   Packrat shows its own icon in the taskbar. To pin it, pin the desktop
   icon (right-click > "Pin to taskbar"), not the running window.
+
+  On a Mac or Linux: install Python 3.11 or newer (Mac: python.org or
+  "brew install python"), unzip, and double-click "Start Packrat.command"
+  (or run it in Terminal:  bash "Start Packrat.command"). The first time
+  it downloads its packages, like on Windows.
+
+
+==========================================================================
+ C. THE MAC APP (Packrat-macOS.dmg)
+==========================================================================
+
+  1. Double-click Packrat-macOS.dmg. In the window that opens, drag
+     Packrat onto the Applications folder.
+  2. Open Packrat from Applications (or Launchpad / Spotlight).
+  3. The first time, the Mac says "Apple could not verify Packrat",
+     because the program is new and not signed by Apple. Click Done, then:
+     System Settings > Privacy & Security > scroll down to
+     "Packrat was blocked" > "Open Anyway" > "Open Anyway" again
+     (enter your Mac password if asked). Only needed once.
+
+  On a Mac, Packrat keeps its settings, favorites and lists in
+  ~/Library/Application Support/Packrat (Finder > Go > Go to Folder...)
+  and saves pictures to your Pictures folder > Packrat. Change that in
+  Settings. Passwords and API keys go in the Mac's Keychain.
+  Packrat's icon sits in the menu bar at the top of the screen.
+  Not on the Mac: hourly monitor checks while Packrat is closed, and the
+  desktop / Start menu shortcuts (keep Packrat open in the menu bar
+  instead). An Intel Mac uses the Python download (B).
 
 
 ==========================================================================

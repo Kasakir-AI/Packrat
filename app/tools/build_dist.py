@@ -8,6 +8,7 @@ tools) and docs/. Personal folders (.venv, data, downloads, archive) and caches 
 from __future__ import annotations
 
 import sys
+import time
 import zipfile
 from pathlib import Path
 
@@ -16,7 +17,8 @@ ROOT = APP.parent
 SKIP_DIRS = {"__pycache__", ".pytest_cache", ".ruff_cache", "build", "dist", ".venv", "data", "downloads", "archive",
              ".git", ".github", "node_modules"}
 SKIP_SUFFIX = (".pyc", ".pyo", ".tmp")
-TOP_FILES = ("START HERE - README.txt", "Start Packrat.bat", "Start Packrat (classic window).bat", "Check Python.bat")
+TOP_FILES = ("START HERE - README.txt", "Start Packrat.bat", "Start Packrat (classic window).bat", "Check Python.bat",
+             "Start Packrat.command")
 
 
 def files(base: Path):
@@ -30,9 +32,15 @@ def files(base: Path):
 
 
 def add(z: zipfile.ZipFile, p: Path, name: str) -> None:
-    """Windows scripts always go in with Windows line endings, whatever the checkout used."""
+    """Windows scripts always go in with Windows line endings, Mac / Linux scripts with Unix ones, whatever the checkout used."""
     if p.suffix.lower() in (".bat", ".ps1"):
         z.writestr(name, p.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    elif p.suffix.lower() in (".command", ".sh"):
+        # Mac / Linux scripts: Unix line endings and the "can run" mark, also when the zip is made on Windows
+        info = zipfile.ZipInfo(name, date_time=time.localtime(p.stat().st_mtime)[:6])
+        info.external_attr = 0o100755 << 16
+        info.compress_type = zipfile.ZIP_DEFLATED
+        z.writestr(info, p.read_bytes().replace(b"\r\n", b"\n"))
     else:
         z.write(p, name)
 

@@ -12,6 +12,8 @@ moved or copied to another PC ("portable"):
     .venv\\            Packrat's private Python packages
 
 PACKRAT_HOME (environment) overrides the install folder (tests, several profiles).
+The Mac app (Packrat.app) keeps these in ~/Library/Application Support/Packrat instead, and saves pictures
+to ~/Pictures/Packrat.
 """
 from __future__ import annotations
 
@@ -29,8 +31,12 @@ def install_root() -> Path:
     env = os.environ.get("PACKRAT_HOME")
     if env:
         return Path(env).expanduser().resolve()
-    if getattr(sys, "frozen", False):      # Packrat.exe: everything personal lives next to the .exe
-        return Path(sys.executable).resolve().parent
+    if getattr(sys, "frozen", False):
+        if sys.platform == "darwin":       # Packrat.app: the app itself is read-only; personal files go to Library
+            home = Path.home() / "Library" / "Application Support" / "Packrat"
+            home.mkdir(parents=True, exist_ok=True)
+            return home
+        return Path(sys.executable).resolve().parent   # Packrat.exe: everything personal lives next to the .exe
     # zip layout: <install>/app/packrat/ ; git checkout: <repo>/app/packrat/ as well
     if APP_DIR.name.lower() == "app":
         return APP_DIR.parent
@@ -54,6 +60,8 @@ def legacy_ini_candidates() -> list[Path]:
 
 
 def default_downloads() -> Path:
+    if getattr(sys, "frozen", False) and sys.platform == "darwin" and not os.environ.get("PACKRAT_HOME"):
+        return Path.home() / "Pictures" / "Packrat"       # where Mac users look for pictures (Finder > Pictures)
     return install_root() / "downloads"
 
 

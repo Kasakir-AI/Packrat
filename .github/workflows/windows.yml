@@ -1,6 +1,7 @@
-name: Windows test and build
+name: Windows and Mac test and build
 
-# Runs on GitHub's Windows machines every time main (or the packrat-3.1 work branch) changes, and on every pull request:
+# Runs on GitHub's Windows and Mac machines every time main (or the packrat-3.1 work branch) changes, and on every
+# pull request. Mac: the "mac" job at the end (tests, Packrat.app, Packrat-macOS.dmg). Windows:
 #   1. the real start-up scripts (Windows PowerShell 5.1), the automatic tests, and a self-test of the window
 #   2. builds Packrat.exe and tests that too
 # The results (screenshots, the built program) are attached to the run as "artifacts".
@@ -130,8 +131,70 @@ jobs:
           Copy-Item out\zip\Packrat-python.zip Packrat-python.zip
           gh release view "v$v" *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create "v$v" --title "Packrat $v" --target $env:GITHUB_SHA --latest --notes "What changed: see docs/CHANGELOG.md, section $v. Download Packrat-windows.zip (no Python needed) or Packrat-python.zip."
-            if ($LASTEXITCODE -ne 0) { exit 1 }
+            gh release create "v$v" --title "Packrat $v" --target $env:GITHUB_SHA --latest --notes "What changed: see docs/CHANGELOG.md, section $v. Windows: Packrat-windows.zip (no Python needed). Mac (Apple Silicon): Packrat-macOS.dmg. Any system with Python 3.11+: Packrat-python.zip."
+            if ($LASTEXITCODE -ne 0) {
+              gh release view "v$v" *> $null      # the Mac job may have made it at the same moment
+              if ($LASTEXITCODE -ne 0) { exit 1 }
+            }
           }
           gh release upload "v$v" Packrat-windows.zip Packrat-python.zip --clobber
           exit $LASTEXITCODE
+
+  mac:
+    name: Mac tests and Packrat.app
+    runs-on: macos-latest         # Apple Silicon: the .dmg runs on M1 and newer Macs
+    timeout-minutes: 45
+    permissions:
+      contents: write             # to attach the .dmg to the release (main only)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e app pyinstaller pytest
+      - name: Automatic tests
+        working-directory: app
+        run: QT_QPA_PLATFORM=offscreen python -m pytest -q
+      - name: The Python download's start script
+        run: bash -n "Start Packrat.command"
+      - name: Build Packrat.app
+        working-directory: app
+        run: python -m PyInstaller --noconfirm packrat.spec
+      - name: Test the built app (commands and window self-test)
+        run: |
+          app/dist/Packrat.app/Contents/MacOS/packrat-cli --version
+          export PACKRAT_HOME="$RUNNER_TEMP/packrat-home"
+          export PACKRAT_SMOKE_VIDEO="$PWD/app/tests/fixtures/sample.webm"
+          mkdir -p "$PACKRAT_HOME"
+          QT_QPA_PLATFORM=offscreen app/dist/Packrat.app/Contents/MacOS/Packrat gui --smoke "$PWD/smoke-mac"
+          cat smoke-mac/smoke.json
+      - name: Make Packrat-macOS.dmg
+        run: |
+          mkdir -p out/dmg
+          cp -R app/dist/Packrat.app out/dmg/
+          ln -s /Applications out/dmg/Applications
+          hdiutil create -volname Packrat -srcfolder out/dmg -ov -format UDZO Packrat-macOS.dmg
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-mac
+          path: smoke-mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Packrat-macOS
+          path: Packrat-macOS.dmg
+          compression-level: 0
+      - name: Add the .dmg to the release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' app/packrat/__init__.py)
+          if ! gh release view "v$v" >/dev/null 2>&1; then
+            gh release create "v$v" --title "Packrat $v" --target "$GITHUB_SHA" --latest --notes "What changed: see docs/CHANGELOG.md, section $v. Windows: Packrat-windows.zip (no Python needed). Mac (Apple Silicon): Packrat-macOS.dmg. Any system with Python 3.11+: Packrat-python.zip." \
+              || gh release view "v$v" >/dev/null    # the Windows job may have made it at the same moment
+          fi
+          gh release upload "v$v" Packrat-macOS.dmg --clobber

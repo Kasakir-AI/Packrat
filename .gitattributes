@@ -3,3 +3,5 @@
 *.png binary
 *.ico binary
 *.webm binary
+*.command text eol=lf
+*.sh text eol=lf
