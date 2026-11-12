@@ -2,6 +2,7 @@
 sent to a stranger, or a folder outside Packrat's own."""
 import io
 import os
+import re
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -30,7 +31,8 @@ def _one_argument(cmd, value_start):
     """Windows runs commands through cmd.exe: nothing from the value may end the command or start another.
     Elsewhere there is no shell (shlex.split + a list): the value can't unbalance the quotes."""
     if os.name == "nt":
-        assert "&" not in cmd and '"x' not in cmd
+        outside_quotes = re.sub(r'"[^"]*"', "", cmd)     # inside "..." cmd.exe takes & | < > literally
+        assert cmd.count('"') % 2 == 0 and not re.search(r"[&|<>^]", outside_quotes)
     else:
         assert isinstance(cmd, list) and any(a.startswith(value_start) for a in cmd)
         assert not any('"' in a for a in cmd)
