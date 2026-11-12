@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.3.0 (2026-11-12) - one search language for every site, and a site setup wizard
+
+### New
+- **Sort and Rating menus** next to the search box: newest, most popular, most favorited, oldest, random; all
+  ratings, safe for work, sensitive, questionable, explicit, not safe for work, no explicit. They work on every site.
+- **Packrat's search words, rewritten for each site.** `order:popular`, `order:favorites`, `order:oldest`,
+  `order:random`, `rating:sfw`, `rating:sensitive`, `rating:questionable`, `rating:explicit`, `rating:nsfw`,
+  `-rating:explicit` and `score:>=50` can be typed (or picked in the menus) once, and Packrat writes them the way each
+  chosen site wants: Danbooru and Gelbooru have four ratings and Danbooru's `rating:s` means *sensitive*; e621,
+  Moebooru and Sankaku have three; Derpibooru uses the tags safe / suggestive / explicit and `score.gte:`; Gelbooru
+  sorts with `sort:`; Wallhaven with `order:toplist`; Zerochan with `order:fav`. Downloads, monitors and favorites
+  use it too. What a site can't do itself, Packrat does on the pictures it receives (ratings, scores) and says so
+  under the results. A site's own words pass unchanged. Off switch: Settings > Interface.
+- **Set up a site** (Sites and logins > *Set up a site...*, or *...* > *Set up a site* on a search): pick a site, see
+  what an account changes there, open the page where it gives out its API key, fill in and test the login, then
+  choose what to show from it (everything, safe for work only, no explicit) and start a first search.
+- **Use my login from a browser**: if you are logged in to a site in your own browser, Packrat can use that login.
+  It reads only that site's cookies, only when you press the button. Firefox and LibreWolf work everywhere; Chrome,
+  Edge, Brave, Arc, Vivaldi and Opera on a Mac (macOS asks once; choose *Always Allow*) and on Linux; Safari on a Mac
+  with Full Disk Access. **Not on Windows for Chrome, Edge and Brave**: since 2024 they lock their logins so no other
+  program can read them; use Firefox or the built-in login browser there.
+- Help: "Sort and rating: the same words on every site" and "Logging in to a site" in How to search.
+
 ## 3.2.2 (2026-11-12) - Mac fixes
 
 ### Fixed

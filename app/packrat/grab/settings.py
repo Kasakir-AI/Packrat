@@ -218,6 +218,10 @@ SETTINGS: tuple[S, ...] = (
     S("invertToggle", False, "bool", UI, "Search results", "Invert click and Ctrl+click",
       "On: a click marks an image for download, Ctrl+click opens it."),
     S("showFilteredImagesCount", True, "bool", UI, "Search results", "Show the filtered images count", ""),
+    S("Search/translateWords", True, "bool", UI, "Search results", "Write sort and rating words for each site",
+      "On: order:popular, rating:sfw, rating:explicit, score:>10 ... work on every site; Packrat rewrites them in "
+      "each site's own way (Danbooru, e621, Gelbooru, Derpibooru and Zerochan all differ) and does what a site "
+      "can't itself. Off: the search is sent exactly as typed."),
     S("previewVideoIndicator", True, "bool", UI, "Search results", "Show a video badge on previews", ""),
     S("hideblacklisted", False, "bool", UI, "Search results", "Hide blacklisted images",
       "Off: they are shown greyed out with a 'blacklisted' badge."),

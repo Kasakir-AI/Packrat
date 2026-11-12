@@ -52,7 +52,10 @@ class SitePicker(QtWidgets.QDialog):
                                     "that login. For sites without an API key (or behind a 'checking your browser' page).")
         self.test_btn = K.button("Test this site", self.test, ico="refresh", tip="Runs one small search to see if the site answers")
         self.remove_btn = K.button("Remove", self.remove, tip="Take this site out of the list (its saved login is deleted)")
-        left = K.vbox(self.find, (self.list, 1), K.hbox(self.count, None, K.button("Add another site...", self.add, ico="plus")),
+        wiz = K.button("Set up a site...", lambda: self.app.open_site_wizard(self.site().host if self.site() else ""),
+                       ico="key", tip="Step by step: log in to a site or get its API key, then choose what it shows")
+        left = K.vbox(self.find, (self.list, 1), K.hbox(self.count, None, wiz,
+                                                        K.button("Add another site...", self.add, ico="plus")),
                       spacing=8)
         right = K.vbox((self.guide, 1), self.msg, K.hbox(self.login_btn, self.web_btn, self.test_btn, None, self.remove_btn),
                        spacing=8)
@@ -337,6 +340,8 @@ class SiteOptions(QtWidgets.QDialog):
             row.addWidget(K.button("Test login", self.test, accent=True))
             row.addWidget(K.button("Forget this login", self.clear))
         row.addWidget(K.button("Log in with the built-in browser...", self.web_login, ico="globe"))
+        from .wizard import browser_login_button
+        row.addWidget(browser_login_button(self, d["name"], self._from_browser))
         row.addWidget(K.button("Open the site", lambda: uikit.open_url(site.base_url)))
         row.addStretch(1)
         lg.addLayout(row)
@@ -454,6 +459,15 @@ class SiteOptions(QtWidgets.QDialog):
         self._apply()
         if open_login_browser(self, self.app, self.site):
             self._say("The login from the built-in browser is saved.", "ok")
+
+    def _from_browser(self, b):
+        from ..grab import browser_login as BL
+        self._apply()
+        self._say(f"Reading your {b.title} login... (macOS may ask to use the browser's key: choose Always Allow)")
+        self.app.worker.submit(lambda: BL.import_login(self.site, b), on_done=lambda n: self._say(
+            f"Packrat now uses your {b.title} login ({n} cookies)." if n else
+            f"{b.title} has no login for this site. Log in there first, then try again.", "ok" if n else "error"),
+            on_error=lambda e: self._say(str(e), "error"))
 
     def save(self):
         self._apply()

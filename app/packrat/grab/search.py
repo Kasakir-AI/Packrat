@@ -40,6 +40,7 @@ class SearchResult:
     duplicates: int = 0
     errors: list = field(default_factory=list)
     wiki: str = ""
+    notes: list = field(default_factory=list)      # what Packrat did for a site (rating / sort it can't do)
 
 def effective_query(query: str, st) -> str:
     add = str(st.get("add") or "").split()
@@ -78,6 +79,8 @@ def run(query: str, sites: list, page: int, per_page: int, st, lib=None, postfil
             res.errors.append(f"{pr.site.name}: {pr.error}")
         if pr.wiki and not res.wiki:
             res.wiki = pr.wiki
+        res.filtered += pr.filtered
+        res.notes += [n for n in getattr(pr, "notes", []) if n not in res.notes]
         for t in pr.tags:
             cur = tag_counts.setdefault(t.name, [t.name, t.type, 0])
             cur[2] += t.count

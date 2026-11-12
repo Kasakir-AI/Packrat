@@ -83,14 +83,29 @@ Most sites (Danbooru, Gelbooru, Safebooru, e621, yande.re, Konachan, rule34...) 
 - Characters, series and artists are tags too: `hatsune_miku`, `pokemon`.
 - If a search finds nothing, check the spelling on the site itself - tags must match exactly.
 
-## Useful extras (on most tag sites)
-- `rating:general` or `rating:safe` - only safe pictures (`rating:s` on older sites)
-- `order:score` - best first;  `order:id` - oldest first
-- `width:>=1920` - big pictures only
+## Sort and rating: the same words on every site
+The **Sort** and **Rating** menus next to the search box work on every site you search. They write Packrat's
+words into the search, and Packrat rewrites them for each site the way that site wants them (Danbooru, e621,
+Gelbooru, Derpibooru, Zerochan and Wallhaven all write them differently). You can also type them:
+- `order:popular` best first - `order:favorites` most favorited - `order:oldest` - `order:random`
+- `rating:sfw` safe for work only - `rating:sensitive` - `rating:questionable` - `rating:explicit`
+- `rating:nsfw` questionable or explicit - `-rating:explicit` anything but explicit
+- `score:>=50` a minimum score
 
-## Sorting, safe only, big pictures
-Add these words to the search (most tag sites understand them): `order:score` best first, `rating:safe` only safe pictures,
-`width:>=1920` big pictures only. Each [site's guide](go:help:sites) says what that site understands.
+When a site can't do one of these itself (Zerochan has no ratings, Wallhaven no oldest-first), Packrat says so
+under the results and, for ratings and scores, leaves out the pictures that don't match. A site's own words
+(`rating:e`, `order:mpixels`, `sort:updated` ...) are sent unchanged. Turn the rewriting off in
+Settings > Interface ("Write sort and rating words for each site").
+
+## Big pictures
+`width:>=1920` big pictures only. Each [site's guide](go:help:sites) says what else that site understands.
+
+## Logging in to a site
+**Sites and logins > Set up a site...** (or **...** > *Set up a site* on a search) walks through it: what an
+account changes on that site, a button that opens the page where the site gives out its API key, the fields to
+fill in and a test. **Use my login from a browser** takes the login you already have in Chrome, Firefox, Edge,
+Safari ... (only that site's, only when you press it). On Windows, Chrome, Edge and Brave lock their logins away
+from other programs; use Firefox or **Log in with the built-in browser** there.
 
 ## Pages
 Results come one page at a time. Use the **◀ ▶** buttons, or turn on "Load more" in
@@ -622,3 +637,56 @@ def sites_index(hosts_with_types) -> str:
         d = site_info(host, src)
         lines.append(f"- [{d['name']}](go:site:{host}) - {d['what']} ({CONTENT_LABEL.get(d['content'], '')})")
     return "\n".join(lines)
+
+
+# ---- the "Set up a site" wizard ------------------------------------------------------------------------
+# key_url: the page where the site hands out its API key (or its login page); why: what an account changes in
+# Packrat; how: key (user name + API key), password, browser (log in on the site's own page inside Packrat) or
+# none. login_steps in SITES say where to click.
+SETUP = {
+    "danbooru.donmai.us": dict(how="key", key_url="https://danbooru.donmai.us/profile",
+                               why="Pictures hidden from visitors without an account, your own favorites "
+                                   "(fav:yourname) and fewer refusals when you search a lot."),
+    "e621.net": dict(how="key", key_url="https://e621.net/users/home",
+                     why="Many posts are hidden from visitors without an account; logged in you see them, plus your "
+                         "favorites (fav:yourname) and your own blacklist."),
+    "e926.net": dict(how="key", key_url="https://e926.net/users/home",
+                     why="Your favorites (fav:yourname) and your own blacklist. It is the same account as e621."),
+    "e6ai.net": dict(how="key", key_url="https://e6ai.net/users/home",
+                     why="Posts hidden from visitors without an account, and your favorites."),
+    "gelbooru.com": dict(how="key", key_url="https://gelbooru.com/index.php?page=account&s=options",
+                         why="Gelbooru's fast way in (its API). Without a key Packrat reads the web pages instead: "
+                             "slower, and big searches can fail."),
+    "api.rule34.xxx": dict(how="key", key_url="https://rule34.xxx/index.php?page=account&s=options",
+                           why="rule34.xxx's API asks for a key; without one searches can be refused."),
+    "wallhaven.cc": dict(how="key", key_url="https://wallhaven.cc/settings/account",
+                         why="Sketchy and NSFW wallpapers: without a key Wallhaven shows only safe ones."),
+    "derpibooru.org": dict(how="key", key_url="https://derpibooru.org/registrations/edit",
+                           why="Your own filter (the default filter hides explicit pictures) and your favorites."),
+    "yande.re": dict(how="password", key_url="https://yande.re/user/login",
+                     why="Pictures hidden from visitors without an account, and your favorites (vote:3:yourname)."),
+    "konachan.com": dict(how="password", key_url="https://konachan.com/user/login",
+                         why="Pictures hidden from visitors without an account (konachan.com shows more than "
+                             "konachan.net), and your favorites."),
+    "chan.sankakucomplex.com": dict(how="browser", key_url="https://chan.sankakucomplex.com/",
+                                    why="Sankaku shows almost nothing to visitors without an account."),
+    "www.pixiv.net": dict(how="browser", key_url="https://www.pixiv.net/",
+                          why="Pixiv needs an account to search."),
+    "www.zerochan.net": dict(how="none", why="Zerochan works without an account."),
+    "safebooru.org": dict(how="none", why="Safebooru works without an account."),
+}
+SETUP_STEPS = {     # for sites whose SITES entry has no login_steps
+    "password": ["Make an account on the site if you don't have one (the button below opens its login page).",
+                 "Type the same user name and password here. Packrat keeps the password in the Windows Credential "
+                 "Manager (Mac: the Keychain), never in a file."],
+    "browser": ["Press **Log in with the built-in browser**: the site opens inside Packrat.",
+                "Log in there as usual (also through a 'checking your browser' page). Close that window when you see "
+                "your account: Packrat keeps the login."],
+}
+
+
+def setup_info(host: str) -> dict:
+    d = dict(SETUP.get(host) or {})
+    if not d and site_info(host).get("see"):
+        d = dict(SETUP.get(site_info(host)["see"]) or {})
+    return d

@@ -75,6 +75,16 @@ def run(win, qapp, outdir: str) -> None:
         w.show()
         shot("setup", w)
         w.close()
+        from .wizard import SiteWizard
+        sw = SiteWizard(win, win)
+        sw.show()
+        shot("site-wizard-pick", sw)
+        host = "e621.net" if win.store.get("e621.net") else win.store.all_sites()[0].host
+        sw._choose(host)
+        shot("site-wizard-login", sw)
+        sw._next()
+        shot("site-wizard-ready", sw)
+        sw.close()
         win.open_help("start")
         shot("help", win.help_win)
         win.help_win.close()

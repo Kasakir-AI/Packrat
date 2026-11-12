@@ -36,6 +36,12 @@ Both links always point at the newest version. Older ones are under [Releases](.
 
 - **Browse** several sites at once: thumbnail grid, tag list in colours, tag completion and coloured words in the
   search box, filters, blacklist.
+- **One search language for every site**: the **Sort** (most popular, most favorited, oldest, random) and **Rating**
+  (safe for work, sensitive, questionable, explicit, no explicit) menus work on every site. Packrat writes them the
+  way each site wants (`order:popular` becomes `order:score` on Danbooru, `sort:score` on Gelbooru, `order:toplist`
+  on Wallhaven ...) and filters the results itself where a site can't.
+- **Set up a site** step by step: what an account changes there, a button to the page with your API key, a test;
+  or use the login you already have in your browser (Firefox everywhere; Chrome, Edge, Brave, Safari on a Mac).
 - **View** pictures with zoom; videos and animated pictures play inside Packrat.
 - **Download** whole searches or picked pictures. Sites download side by side, each at its own polite speed. Stop
   any time; Start continues. Pictures you already have are recognised by MD5, also across sites. A transfer that
@@ -43,8 +49,8 @@ Both links always point at the newest version. Older ones are under [Releases](.
 - **Name and sort files** with Grabber's file name tokens (`%artist%/%id%.%ext%`), conditions and JavaScript.
 - **Favorites and monitors**: keep searches, see what is new, download new pictures automatically. Packrat can sit
   next to the clock and keep checking.
-- **Logins**: API keys and passwords in the Windows Credential Manager (on a Mac: the Keychain), or log in on the
-  site's own page in the built-in browser.
+- **Logins**: API keys and passwords in the Windows Credential Manager (on a Mac: the Keychain), your own
+  browser's login, or log in on the site's own page in the built-in browser.
 - **Site archive**: a complete copy of e6ai or e621 from the sites' daily exports, checked file by file.
 - **Tools**: import everything from Grabber, rename existing files, fix lists, load tag lists. Saved pictures can
   be uploaded to your own booru (Szurubooru, Danbooru, Shimmie, MyImouto).
@@ -58,7 +64,7 @@ Both links always point at the newest version. Older ones are under [Releases](.
 - Your API key is never written into saved files, logs, file names or copied addresses.
 - Commands you set to run after saving (Settings > Commands) can't be hijacked by tag names from a site.
 
-What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.2.2** (Mac fixes).
+What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.3.0** (one search language for every site, site setup wizard).
 
 ## Not there yet
 

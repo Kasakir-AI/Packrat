@@ -398,17 +398,26 @@ class SearchTab(QtWidgets.QWidget):
         self.sites_btn = K.button("", self.choose_sites, ico="globe", tip="Choose which sites this tab searches")
         self.query = QtWidgets.QLineEdit(query)
         self.query.setObjectName("search")
-        self.query.setPlaceholderText("Search tags, e.g.  landscape   or   cat_ears blue_eyes")
+        self.query.setPlaceholderText("Search tags, e.g.  cat_ears blue_eyes")
+        self.query.setMinimumWidth(220)
         self.query.setClearButtonEnabled(True)
         self.query.returnPressed.connect(lambda: self.search())
         self.completer = TagCompleter(self.query, self._complete)
         self.colors = SearchColors(self.query, app, lambda: self.sites)
         self.search_btn = K.button("Search", lambda: self.search(), accent=True, ico="search")
+        from ..grab import searchwords as SW
+        self.sort_box = self._word_menu(SW.SORT_MENU, "sort", "How the sites sort their pictures. Packrat writes the "
+                                        "right words for each site (order:popular in the search box works too).")
+        self.rating_box = self._word_menu(SW.RATING_MENU, "rating", "Which ratings to show, on every chosen site: "
+                                          "Packrat translates rating:sfw, rating:explicit ... for each site, and "
+                                          "checks the pictures itself where a site can't.")
+        self.query.textChanged.connect(lambda *_: self._sync_word_menus())
+        self._sync_word_menus()
         self.filter = QtWidgets.QLineEdit()
-        self.filter.setPlaceholderText("Filter results, e.g. score:>10")
+        self.filter.setPlaceholderText("Filter, e.g. score:>10")
         self.filter.setToolTip("Removes pictures from what the site sent: score:>10, -rating:explicit, width:>=1920, "
                                "-grabber:downloaded ... (Help > Filters)")
-        self.filter.setFixedWidth(210)
+        self.filter.setFixedWidth(150)
         self.filter.returnPressed.connect(lambda: self.search())
         self.prev_btn = K.button("", lambda: self.go(-1), ico="left", tip="Previous page")
         self.next_btn = K.button("", lambda: self.go(1), ico="right", tip="Next page")
@@ -435,12 +444,15 @@ class SearchTab(QtWidgets.QWidget):
         m.addAction("Select all pictures\tCtrl+A", lambda: self.grid.selectAll())
         m.addAction("Select none", lambda: self.grid.clearSelection())
         m.addSeparator()
+        m.addAction("Set up a site (log in, API key)...",
+                    lambda: app.open_site_wizard(self.sites[0] if len(self.sites) == 1 else ""))
         m.addAction("How to search...", lambda: app.open_help("search"))
         self.more_btn = K.button("", ico="more", tip="More", menu=m)
-        top = K.hbox(self.sites_btn, (self.query, 1), self.search_btn, self.filter, self.prev_btn, self.page_no,
+        top = K.hbox(self.sites_btn, (self.query, 1), self.search_btn, self.sort_box, self.rating_box, self.filter,
+                     self.prev_btn, self.page_no,
                      self.next_btn, self.per_page, self.more_btn, spacing=6)
         if gallery is not None:
-            for w in (self.sites_btn, self.query, self.search_btn, self.filter):
+            for w in (self.sites_btn, self.query, self.search_btn, self.sort_box, self.rating_box, self.filter):
                 w.setVisible(False)
             top.insertWidget(0, K.label(f"Gallery: {gallery.name or gallery.id}", role="heading"), 1)
 
@@ -582,6 +594,33 @@ class SearchTab(QtWidgets.QWidget):
         return out[:16]
 
     # ---- searching -------------------------------------------------------------------------------
+    def _word_menu(self, entries, kind, tip) -> QtWidgets.QComboBox:
+        cb = QtWidgets.QComboBox()
+        for label, word in entries:
+            cb.addItem(label, word)
+        cb.setToolTip(tip)
+        cb.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToContents)
+        cb.activated.connect(lambda i, cb=cb, kind=kind: self._pick_word(kind, cb.itemData(i)))
+        cb._kind = kind  # noqa: SLF001
+        return cb
+
+    def _pick_word(self, kind: str, word: str):
+        """A Sort / Rating choice: its word goes in the search box (so favorites, monitors and download lists keep
+        it), then the search runs again."""
+        from ..grab.searchwords import with_word
+        self.query.setText(with_word(self.query.text(), kind, word))
+        self.search()
+
+    def _sync_word_menus(self):
+        from ..grab.searchwords import menu_value
+        for cb in (self.sort_box, self.rating_box):
+            val = menu_value(self.query.text(), cb._kind)  # noqa: SLF001
+            i = cb.findData(val) if val is not None else -1
+            if i >= 0:                   # a combination the menu doesn't list keeps the menu as it was
+                cb.blockSignals(True)
+                cb.setCurrentIndex(i)
+                cb.blockSignals(False)
+
     def go(self, d: int):
         self.page_no.setValue(max(1, self.page_no.value() + d))
         self.search(keep_page=True, direction=d)
@@ -694,6 +733,10 @@ class SearchTab(QtWidgets.QWidget):
         counts = [f"{pr.site.name}: {pr.image_count:,}" for pr in res.pages if pr.image_count and pr.image_count > 0]
         if counts:
             bits.append("in total " + ", ".join(counts))
+        notes = getattr(res, "notes", [])
+        if notes:
+            bits.append(notes[0] if len(notes) == 1 else f"{len(notes)} notes about the sites (point here to read them)")
+        self.status.setToolTip("\n".join(notes))
         errs = [f"{e.split(':', 1)[0]}: {uikit.friendly(e.split(':', 1)[-1], e.split(':', 1)[0])}" for e in res.errors]
         self._say("   |   ".join(bits) + (("      Problem - " + "  ".join(errs)) if errs else ""), error=bool(errs))
         self._update_sel()
