@@ -1,6 +1,6 @@
 name: Windows test and build
 
-# Runs on GitHub's Windows machines every time main (or the packrat-3.1 work branch) changes:
+# Runs on GitHub's Windows machines every time main (or the packrat-3.1 work branch) changes, and on every pull request:
 #   1. the real start-up scripts (Windows PowerShell 5.1), the automatic tests, and a self-test of the window
 #   2. builds Packrat.exe and tests that too
 # The results (screenshots, the built program) are attached to the run as "artifacts".
@@ -8,6 +8,8 @@ name: Windows test and build
 on:
   push:
     branches: [main, packrat-3.1]
+  pull_request:          # every pull request is tested (and Packrat.exe built) before it is merged
+    branches: [main]
   workflow_dispatch:
 
 jobs:

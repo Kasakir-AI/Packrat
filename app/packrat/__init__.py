@@ -5,4 +5,4 @@ Two engines share one window:
   * Browse / Downloads (packrat.grab): every Grabber source (Danbooru, Gelbooru, Pixiv, e621, ...),
     with Grabber's filename language, MD5 list, blacklist, favorites and monitors.
 """
-__version__ = "3.2.0"
+__version__ = "3.2.1"

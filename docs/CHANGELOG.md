@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - security review
+## 3.2.1 (2026-11-12) - security fixes
 
 ### Security
 - **Commands after saving can no longer be hijacked by a tag.** Settings > Commands puts tag names and other

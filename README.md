@@ -41,6 +41,15 @@ Both links always point at the newest version. Older ones are under [Releases](.
   be uploaded to your own booru (Szurubooru, Danbooru, Shimmie, MyImouto).
 - Help is built in (F1), and every feature is also on the command line (`packrat --help`).
 
+## Safety
+
+- Logins (passwords, API keys, tokens) are kept in the Windows Credential Manager, never in settings files, and
+  are only sent to the site they belong to - not to the servers that host its files.
+- Your API key is never written into saved files, logs, file names or copied addresses.
+- Commands you set to run after saving (Settings > Commands) can't be hijacked by tag names from a site.
+
+What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.2.1** (security fixes).
+
 ## Not there yet
 
 - English only. No auto-update. No custom themes.
@@ -58,8 +67,9 @@ python -m pytest -q
 python -m packrat gui
 ```
 
-Every push is tested on GitHub's Windows machines: the start-up scripts, the tests, a self-test of the window,
-and the `Packrat.exe` build ([workflow](.github/workflows/windows.yml)).
+Every push and every pull request is tested on GitHub's Windows machines: the start-up scripts, the tests, a
+self-test of the window, and the `Packrat.exe` build ([workflow](.github/workflows/windows.yml)). A merge into
+`main` publishes the new version on the Releases page by itself.
 
 ## More
 
