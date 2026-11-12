@@ -97,3 +97,24 @@ def test_search_words_are_coloured_without_changing_the_text(tmp_path):
     st.set("colorSearchWords", False)
     colors.apply()
     assert edit.text() == "pikachu landscape -gore smile"
+
+
+def test_opening_again_brings_the_window_back():
+    """Mac: Spotlight / Finder / Dock re-activate the running Packrat; a window hidden in the menu bar comes back,
+    a visible one is left alone, and the activation that comes with starting ('start hidden') is ignored."""
+    from types import SimpleNamespace
+
+    from packrat.qt.app import MainWindow
+    from packrat.qt.common import Qt
+    shown = []
+    win = SimpleNamespace(_reopen_armed=True, isVisible=lambda: False, isMinimized=lambda: False,
+                          bring_up=lambda: shown.append(1))
+    active = Qt.ApplicationState.ApplicationActive
+    MainWindow._app_state(win, active)
+    assert shown == [1]
+    MainWindow._app_state(win, Qt.ApplicationState.ApplicationInactive)
+    win.isVisible = lambda: True
+    MainWindow._app_state(win, active)
+    win.isVisible, win._reopen_armed = (lambda: False), False
+    MainWindow._app_state(win, active)
+    assert shown == [1]

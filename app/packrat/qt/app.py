@@ -388,6 +388,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show()
         self.raise_()
         self.activateWindow()
+        if sys.platform == "darwin":
+            _activate_mac_app()     # Qt shows the window but leaves the keyboard with the previous app
+
+    def _app_state(self, state):
+        """Mac: opening Packrat again (Spotlight, Finder, Dock) while it runs in the menu bar does not start a
+        second copy, it re-activates this one. Bring the window back then, as Windows does via the local socket."""
+        if (state == Qt.ApplicationState.ApplicationActive and self._reopen_armed
+                and (not self.isVisible() or self.isMinimized())):
+            self.bring_up()
 
     def closeEvent(self, e):
         if not self.quitting and self.tray is not None and self.st.get("Monitoring/closeToTray"):
@@ -485,8 +494,29 @@ def _instance_name() -> str:
     return "packrat-" + hashlib.sha1(str(paths.install_root()).lower().encode()).hexdigest()[:16]
 
 
+def _activate_mac_app() -> None:
+    """[NSApp activateIgnoringOtherApps:YES] through the Objective-C runtime (no extra package needed)."""
+    try:
+        import ctypes
+        import ctypes.util
+        objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("objc"))
+        objc.objc_getClass.restype = objc.sel_registerName.restype = ctypes.c_void_p
+        send = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(("objc_msgSend", objc))
+        send_bool = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_bool)(("objc_msgSend", objc))
+        nsapp = send(objc.objc_getClass(b"NSApplication"), objc.sel_registerName(b"sharedApplication"))
+        send_bool(nsapp, objc.sel_registerName(b"activateIgnoringOtherApps:"), True)
+    except Exception:  # noqa: BLE001 - the window is shown anyway
+        log.debug("could not activate the app", exc_info=True)
+
+
 def _already_running(name: str) -> bool:
     """True when another Packrat window for this folder answered (it was asked to come to the front)."""
+    if os.name == "nt":
+        try:    # this new process may bring windows forward; let the running Packrat do it instead
+            import ctypes
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)   # ASFW_ANY
+        except Exception:  # noqa: BLE001
+            pass
     sock = QtNetwork.QLocalSocket()
     sock.connectToServer(name)
     if sock.waitForConnected(400):
@@ -535,6 +565,9 @@ def main(argv=None) -> int:
     sys.excepthook = excepthook
 
     win = MainWindow(qapp)
+    win._reopen_armed = False      # not for the activation that comes with this start ("start hidden" stays hidden)
+    QtCore.QTimer.singleShot(2000, lambda: setattr(win, "_reopen_armed", True))
+    qapp.applicationStateChanged.connect(win._app_state)
     QtNetwork.QLocalServer.removeServer(name)
     server = QtNetwork.QLocalServer(win)
     server.newConnection.connect(lambda: (server.nextPendingConnection().close(), win.bring_up()))

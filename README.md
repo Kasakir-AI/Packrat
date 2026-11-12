@@ -58,7 +58,7 @@ Both links always point at the newest version. Older ones are under [Releases](.
 - Your API key is never written into saved files, logs, file names or copied addresses.
 - Commands you set to run after saving (Settings > Commands) can't be hijacked by tag names from a site.
 
-What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.2.1** (security fixes, Mac version).
+What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.2.2** (Mac fixes).
 
 ## Not there yet
 
