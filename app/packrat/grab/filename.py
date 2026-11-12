@@ -594,8 +594,9 @@ def _q(s: str) -> str:
 
 
 class Executor:
-    def __init__(self, tokens: dict, st, keep_invalid: bool = False, escape=None):
+    def __init__(self, tokens: dict, st, keep_invalid: bool = False, escape=None, value_filter=None):
         self.tokens, self.st, self.keep_invalid, self.escape = tokens, st, keep_invalid, escape
+        self.value_filter = value_filter   # applied to every token value (commands: shell_safe)
 
     def run(self, node) -> str:
         out: list[str] = []
@@ -688,6 +689,8 @@ class Executor:
             res = clean_variable(res, opts, self.st)
         if self.escape is not None and "escape" in opts:
             res = self.escape(res)
+        if self.value_filter is not None:
+            res = self.value_filter(res)
         return res
 
     def list_to_string(self, name: str, val: list[str], opts: dict) -> str:
@@ -982,6 +985,7 @@ class Filename:
         self.format = fmt or ""
         self.ast, self.error, self.used = parse_cached(self.format)
         self.escape = None
+        self.value_filter = None
 
     @property
     def is_js(self) -> bool:
@@ -1033,7 +1037,7 @@ class Filename:
             return []
         names = []
         for rep in self.expand_tokens(tokens, st):
-            ex = Executor(rep, st, bool(flags & FLAG_KEEP_INVALID), self.escape)
+            ex = Executor(rep, st, bool(flags & FLAG_KEEP_INVALID), self.escape, self.value_filter)
             name = ex.run(self.ast)
             if not name:
                 continue

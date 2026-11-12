@@ -164,6 +164,7 @@ class ArchivePage(QtWidgets.QWidget):
         body.addStretch(1)
         holder = QtWidgets.QWidget()
         holder.setLayout(body)
+        holder.setMaximumWidth(K.FORM_MAX_WIDTH)   # a 2000 px wide text box is hard to read
         sc = QtWidgets.QScrollArea()
         sc.setWidgetResizable(True)
         sc.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)

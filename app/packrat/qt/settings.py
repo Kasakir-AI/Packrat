@@ -232,6 +232,7 @@ class SettingsPage(QtWidgets.QWidget):
         body.addStretch(1)
         holder = QtWidgets.QWidget()
         holder.setLayout(body)
+        holder.setMaximumWidth(K.FORM_MAX_WIDTH)   # a 2000 px wide text box is hard to read
         self.scroll.setWidget(holder)
 
     def _changed(self, key, value):
