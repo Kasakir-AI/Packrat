@@ -398,8 +398,7 @@ class SearchTab(QtWidgets.QWidget):
         self.sites_btn = K.button("", self.choose_sites, ico="globe", tip="Choose which sites this tab searches")
         self.query = QtWidgets.QLineEdit(query)
         self.query.setObjectName("search")
-        self.query.setPlaceholderText("Search tags, e.g.  cat_ears blue_eyes")
-        self.query.setMinimumWidth(220)
+        self.query.setPlaceholderText("Search tags, e.g.  landscape   or   cat_ears blue_eyes")
         self.query.setClearButtonEnabled(True)
         self.query.returnPressed.connect(lambda: self.search())
         self.completer = TagCompleter(self.query, self._complete)
@@ -414,10 +413,10 @@ class SearchTab(QtWidgets.QWidget):
         self.query.textChanged.connect(lambda *_: self._sync_word_menus())
         self._sync_word_menus()
         self.filter = QtWidgets.QLineEdit()
-        self.filter.setPlaceholderText("Filter, e.g. score:>10")
+        self.filter.setPlaceholderText("e.g. score:>10  -grabber:downloaded")
         self.filter.setToolTip("Removes pictures from what the site sent: score:>10, -rating:explicit, width:>=1920, "
                                "-grabber:downloaded ... (Help > Filters)")
-        self.filter.setFixedWidth(150)
+        self.filter.setMinimumWidth(220)
         self.filter.returnPressed.connect(lambda: self.search())
         self.prev_btn = K.button("", lambda: self.go(-1), ico="left", tip="Previous page")
         self.next_btn = K.button("", lambda: self.go(1), ico="right", tip="Next page")
@@ -448,11 +447,13 @@ class SearchTab(QtWidgets.QWidget):
                     lambda: app.open_site_wizard(self.sites[0] if len(self.sites) == 1 else ""))
         m.addAction("How to search...", lambda: app.open_help("search"))
         self.more_btn = K.button("", ico="more", tip="More", menu=m)
-        top = K.hbox(self.sites_btn, (self.query, 1), self.search_btn, self.sort_box, self.rating_box, self.filter,
-                     self.prev_btn, self.page_no,
+        top = K.hbox(self.sites_btn, (self.query, 1), self.search_btn, self.prev_btn, self.page_no,
                      self.next_btn, self.per_page, self.more_btn, spacing=6)
+        # second row: how the results are sorted / rated / filtered (the search box keeps the whole width above)
+        self.refine = K.widget(K.hbox(K.label("Sort", muted=True), self.sort_box, K.label("  Rating", muted=True),
+                                      self.rating_box, K.label("  Filter", muted=True), self.filter, None, spacing=6))
         if gallery is not None:
-            for w in (self.sites_btn, self.query, self.search_btn, self.sort_box, self.rating_box, self.filter):
+            for w in (self.sites_btn, self.query, self.search_btn, self.refine):
                 w.setVisible(False)
             top.insertWidget(0, K.label(f"Gallery: {gallery.name or gallery.id}", role="heading"), 1)
 
@@ -512,7 +513,7 @@ class SearchTab(QtWidgets.QWidget):
         self.mon_btn = K.button("Monitor...", self.add_monitor, ico="bell",
                                 tip="Check this search every few hours and download what is new")
         bottom = K.hbox(self.dest, None, self.sel_btn, self.page_btn, self.all_btn, self.fav_btn, self.mon_btn, spacing=6)
-        self.setLayout(K.vbox(top, (split, 1), self.status, bottom, margins=(12, 10, 12, 10), spacing=6))
+        self.setLayout(K.vbox(top, self.refine, (split, 1), self.status, bottom, margins=(12, 10, 12, 10), spacing=6))
         QtGui.QShortcut(QtGui.QKeySequence("Ctrl+A"), self.grid, activated=self.grid.selectAll,
                         context=Qt.ShortcutContext.WidgetShortcut)
         self.query.setMinimumWidth(150)
@@ -525,12 +526,11 @@ class SearchTab(QtWidgets.QWidget):
         self.draw_empty()
 
     def resizeEvent(self, e):
-        """On a narrow window: hide the two least-used boxes and shorten the button texts, so nothing is cut off."""
+        """On a narrow window: hide the least-used box and shorten the button texts, so nothing is cut off. (The
+        Sort / Rating / Filter row has room at any width.)"""
         super().resizeEvent(e)
         w = self.width()
         narrow = w < 1020
-        if self.gallery is None:
-            self.filter.setVisible(w >= 1020)
         self.per_page.setVisible(w >= 860)
         if narrow != self._narrow:
             self._narrow = narrow

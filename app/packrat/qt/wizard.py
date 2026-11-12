@@ -30,7 +30,7 @@ class SiteWizard(QtWidgets.QDialog):
         super().__init__(parent)
         self.app, self.site = app, None
         self.setWindowTitle("Set up a site")
-        self.setMinimumSize(640, 520)
+        self.setMinimumSize(700, 540)
         self.fields: dict[str, QtWidgets.QLineEdit] = {}
         self.stack = QtWidgets.QStackedWidget()
         self.stack.addWidget(self._pick_page())
@@ -113,7 +113,9 @@ class SiteWizard(QtWidgets.QDialog):
                 row.addWidget(K.button(text, lambda: uikit.open_url(info["key_url"]), ico="globe",
                                        tip=info["key_url"]))
             row.addWidget(browser_login_button(self, d["name"], self._from_browser))
-            row.addWidget(K.button("Log in with the built-in browser...", self._web_login, flat=True))
+            row.addWidget(K.button("Use the built-in browser...", self._web_login, flat=True,
+                                   tip="Opens the site inside Packrat: log in there like in any browser (also through "
+                                       "'checking your browser' pages); Packrat keeps that login."))
             row.addStretch(1)
             lay.addLayout(row)
             if self.auths and how != "browser":
