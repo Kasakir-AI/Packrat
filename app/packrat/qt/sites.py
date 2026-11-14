@@ -335,16 +335,13 @@ class SiteOptions(QtWidgets.QDialog):
                 self.rows[fid] = (lab, ed)
             lg.addLayout(self.form)
         lg.addWidget(self.test_msg)
-        row = K.hbox()
-        if self.auths:
-            row.addWidget(K.button("Test login", self.test, accent=True))
-            row.addWidget(K.button("Forget this login", self.clear))
-        row.addWidget(K.button("Log in with the built-in browser...", self.web_login, ico="globe"))
+        if self.auths:      # two short rows, not one long one that gets cut off: the login here, then the other ways in
+            lg.addLayout(K.hbox(K.button("Test login", self.test, accent=True), K.button("Forget this login", self.clear),
+                                None))
         from .wizard import browser_login_button
-        row.addWidget(browser_login_button(self, d["name"], self._from_browser))
-        row.addWidget(K.button("Open the site", lambda: uikit.open_url(site.base_url)))
-        row.addStretch(1)
-        lg.addLayout(row)
+        lg.addLayout(K.hbox(K.button("Log in with the built-in browser...", self.web_login, ico="globe"),
+                            browser_login_button(self, d["name"], self._from_browser),
+                            K.button("Open the site", lambda: uikit.open_url(site.base_url)), None))
         lg.addStretch(1)
         tabs.addTab(K.widget(lg), "Login")
 

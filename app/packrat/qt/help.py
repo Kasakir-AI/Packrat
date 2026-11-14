@@ -31,7 +31,7 @@ def _inline(s: str) -> str:
         elif part.startswith("["):
             m = re.match(r"\[([^\]]+)\]\(([^)]+)\)", part)
             label, target = m.group(1), m.group(2)
-            out.append(f'<a style="color:{C["accent"]}; text-decoration:none;" href="{html.escape(target)}">{html.escape(label)}</a>')
+            out.append(f'<a style="color:{C["link"]}; text-decoration:none;" href="{html.escape(target)}">{html.escape(label)}</a>')
         elif part.startswith("*"):
             out.append(f"<i>{html.escape(part[1:-1])}</i>")
         else:
@@ -60,10 +60,10 @@ def guide_html(text: str) -> str:
             flush()
         elif line.startswith("# "):
             flush()
-            out.append(f'<h1 style="font-size:17pt; font-weight:600;">{_inline(line[2:])}</h1>')
+            out.append(f'<h1 style="font-size:19pt; {K.display_css()}">{_inline(line[2:])}</h1>')
         elif line.startswith("## "):
             flush()
-            out.append(f'<a name="{slug(line[3:])}"></a><h2 style="font-size:12pt; font-weight:600; margin-top:18px;">'
+            out.append(f'<a name="{slug(line[3:])}"></a><h2 style="font-size:13pt; {K.display_css()} margin-top:18px;">'
                        f"{_inline(line[3:])}</h2>")
         elif line.startswith("- "):
             if kind != "ul":
@@ -132,7 +132,9 @@ class HelpWindow(QtWidgets.QWidget):
             self.topics.addItem(it)
         self.topics.currentItemChanged.connect(lambda it, _p: self._show_topic(it.data(Qt.ItemDataRole.UserRole)) if it
                                                and not self._quiet else None)
-        self.topics.setFixedWidth(230)
+        self.topics.setFixedWidth(270)
+        self.topics.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.topics.setTextElideMode(Qt.TextElideMode.ElideRight)
         self._quiet = False
         self.view = GuideView(app, on_go=self._go)
         side = K.vbox((self.topics, 1), K.button("Run the setup assistant again", lambda: app.run_setup()),
@@ -192,7 +194,7 @@ class AboutDialog(QtWidgets.QDialog):
         logo.setPixmap(K.app_icon().pixmap(96, 96))
         from .. import paths
         text = K.label(
-            f"<div style='font-size:18pt; font-weight:600;'>Packrat {__version__}</div>"
+            f"<div style=\"font-size:20pt; {K.display_css()}\">Packrat {__version__}</div>"
             "<p>Finds, downloads and organizes pictures from many sites, and keeps a complete copy of e6ai or e621.</p>"
             "<p>The site sources come from Grabber by Bionus "
             "(Apache License 2.0); see app\\packrat\\sources\\GRABBER-NOTICE.txt.<br>The window uses Qt for Python "

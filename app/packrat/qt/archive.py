@@ -51,10 +51,9 @@ class ArchivePage(QtWidgets.QWidget):
         self.start_btn.setMinimumWidth(120)
         self.pause_btn = K.button("Pause", self.pause, ico="pause")
         self.stop_btn = K.button("Stop", self.stop, ico="stop")
-        head = K.vbox(K.label("Site archive", role="title"),
-                      K.label("A complete copy of e6ai or e621: every post, file and its details, checked file by file. It can "
-                              "take days and hundreds of GB; stop whenever you like, Start continues.", muted=True, wrap=True),
-                      spacing=2)
+        head = K.page_head("archive", "box", "Site archive",
+                           "A complete copy of e6ai or e621: every post, file and its details, checked file by file. It can "
+                           "take days and hundreds of GB; stop whenever you like, Start continues.")
         top = K.hbox(K.label("What to do"), self.mode, None, self.pause_btn, self.stop_btn, self.start_btn)
 
         self.tabs = QtWidgets.QTabWidget()
@@ -88,7 +87,7 @@ class ArchivePage(QtWidgets.QWidget):
                                margins=(14, 12, 14, 12), spacing=5), "card")
         run_tab = K.widget(K.vbox(prog, (self.logview, 1), margins=(0, 10, 0, 0), spacing=10))
         self.tabs.addTab(run_tab, "Progress and log")
-        self.setLayout(K.vbox(head, top, self.mode_help, (self.tabs, 1), self.msg, tools, margins=(18, 14, 18, 12), spacing=9))
+        self.setLayout(K.vbox(head, top, self.mode_help, (self.tabs, 1), self.msg, tools, margins=(22, 18, 22, 14), spacing=10))
 
         self.save_timer = QtCore.QTimer(self, singleShot=True, interval=900, timeout=self._save)
         self.poll = QtCore.QTimer(self, interval=300, timeout=self._poll)

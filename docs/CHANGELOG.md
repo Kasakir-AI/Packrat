@@ -1,5 +1,31 @@
 # Changelog
 
+## 3.4.0 (2026-11-13) - a new look: pastels, one colour per page
+
+Nothing moved and nothing works differently; every button, menu and shortcut is where it was.
+
+### Changed
+- **Every page has its own pastel.** Browse is lilac, Downloads mint, Favorites rose, Monitors butter, Site archive
+  sky, Settings orchid, Tools peach, Log aqua. The page's row in the sidebar, its main button, its progress bar, its
+  ticked boxes and the outline of the field you type in all wear that colour, so the colour says where you are.
+- **Light and dark** are both redrawn (Ctrl+Shift+D still switches). Dark keeps the pastels on a deep plum instead
+  of grey-blue.
+- **Thumbnails**: rounder cards; a picture that is still loading is a pastel square, so a page fills in like a
+  quilt. "saved" is a mint pill, a favorite has a rose outline, the picked ones a lilac one.
+- **Pages open with their sign and a line about what they are for**; empty lists show the sign large with what to
+  do next. The Tools are cards in different colours, each with its own icon.
+- **Tag colours** follow the theme: artists rose, series orchid, characters mint, species peach, meta butter. A
+  colour you picked yourself in Settings > Interface is used exactly as it is.
+- **Two typefaces come with Packrat**: Nunito for text and Fredoka for names and titles (both SIL Open Font
+  License; the license is in `app/packrat/assets/FONTS-LICENSE.txt`). If one can't be loaded, Packrat uses the
+  system's typeface.
+
+### Fixed
+- The login page of *Log in / settings* had five buttons in one row and cut their texts off in a narrow window. They
+  are two rows now.
+- The Help window's topic list no longer cuts off its longest title.
+- Empty-list messages kept the old theme's grey after switching light / dark.
+
 ## 3.3.1 (2026-11-12) - Danbooru works again
 
 ### Fixed

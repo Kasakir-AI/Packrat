@@ -22,6 +22,39 @@ def test_style_sheet_has_every_colour():
     assert set(K.PALETTES["dark"]) == set(K.PALETTES["light"])
 
 
+def test_every_page_has_a_colour_and_every_colour_all_its_tones():
+    from packrat.qt import common as K
+    from packrat.qt.app import NAV
+    assert {key for key, _text, _ico in NAV} == set(K.PAGE_HUE) and set(K.PAGE_HUE.values()) <= set(K.HUES)
+    for pal in K.PALETTES.values():
+        assert all(f"{h}_{t}" in pal for h in K.HUES for t in K.TONES)
+    assert all(f'[hue="{h}"]' in K.QSS for h in K.HUES)
+
+
+def test_bundled_typefaces_are_there_with_their_license():
+    from packrat.qt import common as K
+    for _role, files in K._FONT_FILES:
+        assert all((K.ASSETS / f).is_file() for f in files)
+    assert (K.ASSETS / "FONTS-LICENSE.txt").is_file()
+
+
+def test_tag_colours_follow_the_theme_unless_you_chose_your_own():
+    from packrat.qt import common as K
+
+    class St:
+        def __init__(self, colors):
+            self.colors = colors
+
+        def get(self, _key):
+            return self.colors
+    K.C.clear()
+    K.C.update(K.PALETTES["light"])
+    K.DARK[0] = False
+    assert K.tag_color("artist", St({"artists": "#aa0000"})) == K.C["rose_ink"]       # the colour Packrat starts with
+    assert K.tag_color("artist", St({"artists": "#123456"})) == "#123456"             # one you picked
+    assert K.tag_color("general", St({})) == "#000000"                                # "no colour": the text colour
+
+
 def test_guide_markup_becomes_html():
     from packrat.qt.help import guide_html, slug
     html = guide_html("# Title\n\n## Keys here\n- **S**: save `%md5%`\n- [Browse](go:tab:browse)\n\n1. one\n   more\n2. two")

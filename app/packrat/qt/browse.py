@@ -112,22 +112,29 @@ class GridDelegate(QtWidgets.QStyledItemDelegate):
         selected = bool(opt.state & QtWidgets.QStyle.StateFlag.State_Selected)
         hover = bool(opt.state & QtWidgets.QStyle.StateFlag.State_MouseOver)
         path = QtGui.QPainterPath()
-        path.addRoundedRect(cell, 10, 10)
-        p.fillPath(path, QtGui.QColor(C["raised"] if hover else C["panel"]))
+        path.addRoundedRect(cell, 14, 14)
         if pm is not None and not pm.isNull():
+            p.fillPath(path, QtGui.QColor(C["raised"] if hover else C["panel"]))
             w, h = pm.width() / pm.devicePixelRatio(), pm.height() / pm.devicePixelRatio()
-            k = min((cell.width() - 6) / w, (cell.height() - 6) / h, 1.0)
+            k = min((cell.width() - 8) / w, (cell.height() - 8) / h, 1.0)
             tw, th = w * k, h * k
             target = QtCore.QRectF(cell.center().x() - tw / 2, cell.center().y() - th / 2, tw, th)
             clip = QtGui.QPainterPath()
-            clip.addRoundedRect(target, 7, 7)
+            clip.addRoundedRect(target, 10, 10)
             p.setClipPath(clip)
             p.drawPixmap(target, pm, QtCore.QRectF(pm.rect()))
             p.setClipping(False)
         else:
-            p.setPen(QtGui.QColor(C["muted"]))
-            failed = id(sh) in idx.model().failed
-            p.drawText(cell, Qt.AlignmentFlag.AlignCenter, "no preview" if failed else "loading...")
+            # a picture that is still on its way is a pastel square: the page fills in like a quilt
+            tint = K.HUES[idx.row() % len(K.HUES)]
+            p.fillPath(path, QtGui.QColor(K.hue(tint, "fill")))
+            if id(sh) in idx.model().failed:
+                p.setPen(QtGui.QColor(K.hue(tint, "ink")))
+                p.drawText(cell, Qt.AlignmentFlag.AlignCenter, "no preview")
+            else:
+                c = cell.center()
+                pic = K.icon("image", K.hue(tint, "line"), 28).pixmap(56, 56)
+                p.drawPixmap(QtCore.QRectF(c.x() - 14, c.y() - 14, 28, 28), pic, QtCore.QRectF(pic.rect()))
         if sh.blacklisted:
             p.fillPath(path, QtGui.QColor(0, 0, 0, 150) if K.DARK[0] else QtGui.QColor(255, 255, 255, 170))
         im = sh.image
@@ -138,34 +145,38 @@ class GridDelegate(QtWidgets.QStyledItemDelegate):
             badge = "VIDEO"
         elif im.is_animated or (im.ext or "").lower() == "gif":
             badge = "GIF"
+        ink = QtGui.QColor(C["accent_text"])
         if badge:
-            self._badge(p, cell.left() + 8, cell.top() + 8, badge, QtGui.QColor(0, 0, 0, 170), QtGui.QColor("#ffffff"))
+            self._badge(p, cell.left() + 9, cell.top() + 9, badge, QtGui.QColor(20, 18, 28, 185), QtGui.QColor("#ffffff"))
         if sh.blacklisted:
-            self._badge(p, cell.left() + 8, cell.bottom() - 28, "blacklisted", QtGui.QColor(C["error"]), QtGui.QColor("#ffffff"))
+            self._badge(p, cell.left() + 9, cell.bottom() - 29, "blacklisted", QtGui.QColor(C["error"]),
+                        ink if K.DARK[0] else QtGui.QColor("#ffffff"))
         if sh.downloaded:
-            self._badge(p, cell.right() - 58, cell.top() + 8, "saved", QtGui.QColor(C["ok"]), QtGui.QColor("#0b1a10"))
-        col, wid = (C["accent"], 3) if selected else (C["ok"], 2) if sh.downloaded else (C["fav"], 2) if sh.favorited \
-            else (C["border"], 1)
+            self._badge(p, cell.right() - 9, cell.top() + 9, "saved", QtGui.QColor(C["mint_strong"]), ink, right=True)
+        col, wid = (C["ring"], 3) if selected else (C["mint_line"], 2) if sh.downloaded \
+            else (C["rose_line"], 2) if sh.favorited else (C["ring"], 1.5) if hover else (C["border"], 1)
         pen = QtGui.QPen(QtGui.QColor(col), wid)
         p.setPen(pen)
         p.setBrush(Qt.BrushStyle.NoBrush)
-        p.drawRoundedRect(cell.adjusted(wid / 2, wid / 2, -wid / 2, -wid / 2), 10, 10)
+        p.drawRoundedRect(cell.adjusted(wid / 2, wid / 2, -wid / 2, -wid / 2), 14 - wid / 2, 14 - wid / 2)
         if selected:
-            p.fillPath(path, QtGui.QColor(QtGui.QColor(C["accent"]).red(), QtGui.QColor(C["accent"]).green(),
-                                          QtGui.QColor(C["accent"]).blue(), 46))
+            wash = QtGui.QColor(C["accent"])
+            wash.setAlpha(70)
+            p.fillPath(path, wash)
         p.restore()
 
     @staticmethod
-    def _badge(p, x, y, text, bg, fg):
+    def _badge(p, x, y, text, bg, fg, right: bool = False):
+        """A small pill with a word in it; with right=True, x is where the pill ends."""
         f = p.font()
         f.setPointSizeF(7.5)
         f.setBold(True)
         p.setFont(f)
-        w = p.fontMetrics().horizontalAdvance(text) + 12
-        r = QtCore.QRectF(x, y, w, 19)
+        w = p.fontMetrics().horizontalAdvance(text) + 16
+        r = QtCore.QRectF(x - w if right else x, y, w, 20)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(bg)
-        p.drawRoundedRect(r, 6, 6)
+        p.drawRoundedRect(r, 10, 10)
         p.setPen(fg)
         p.drawText(r, Qt.AlignmentFlag.AlignCenter, text)
 
@@ -322,7 +333,7 @@ class SearchColors(QtCore.QObject):
             typ = "meta"
         if not typ or typ == "general":
             return None
-        col = uikit.tag_color(typ, st, K.DARK[0])
+        col = K.tag_color(typ, st)
         return None if col.lower() in ("#000000", "#000") else col
 
     def apply(self):
@@ -482,7 +493,7 @@ class SearchTab(QtWidgets.QWidget):
         self.grid.customContextMenuRequested.connect(self._menu)
         self.grid.selectionModel().selectionChanged.connect(lambda *_: self._update_sel())
         self.grid.verticalScrollBar().valueChanged.connect(self._scrolled)
-        self.empty = K.empty_state("", "")
+        self.empty = K.empty_state("", "", ico="search", hue="browse")
         self.empty.linkActivated.connect(self._empty_link)
         self.more_results = K.button("Load more", self.load_more)
         self.more_results.setVisible(False)
@@ -782,7 +793,7 @@ class SearchTab(QtWidgets.QWidget):
             text = "Type what you are looking for above and press Enter."
             if recent:
                 text += "<br><br><b>Recent searches</b><br>" + "<br>".join(
-                    f'<a style="color:{C["accent"]}; text-decoration:none;" href="recent:{i}">{K.esc(q or "(everything)")}</a>'
+                    f'<a style="color:{C["link"]}; text-decoration:none;" href="recent:{i}">{K.esc(q or "(everything)")}</a>'
                     for i, (q, _s) in enumerate(recent))
             K.set_empty(self.empty, "Search for pictures", text)
         self.view.setCurrentWidget(self.empty)
@@ -937,7 +948,7 @@ class SearchTab(QtWidgets.QWidget):
         for i in range(self.tags.count()):
             it = self.tags.item(i)
             _name, typ = it.data(Qt.ItemDataRole.UserRole)
-            col = uikit.tag_color(typ, st, K.DARK[0])
+            col = K.tag_color(typ, st)
             if not K.DARK[0] and col.lower() in ("#000000", "#000"):
                 col = C["text"]
             it.setForeground(QtGui.QColor(col))

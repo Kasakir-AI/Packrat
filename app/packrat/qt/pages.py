@@ -20,20 +20,25 @@ SORT = Qt.ItemDataRole.UserRole + 1
 
 
 class Page(QtWidgets.QWidget):
-    """A page with a title, a one-line explanation, a toolbar and a body."""
+    """A page with its sign and title, a one-line explanation, a toolbar and a body."""
+    KEY = ""      # the page's name in the sidebar: it decides the page's colour (common.PAGE_HUE)
+    ICO = ""      # ... and its sign
 
     def __init__(self, app, title: str, intro: str = ""):
         super().__init__()
         self.app = app
+        self.setProperty("hue", K.PAGE_HUE.get(self.KEY, "lilac"))
         self.bar = K.hbox(spacing=6)
         self.body = K.vbox(spacing=8)
-        head = K.vbox(K.label(title, role="title"), spacing=2)
-        if intro:
-            head.addWidget(K.label(intro, muted=True, wrap=True))
-        self.setLayout(K.vbox(head, self.bar, (self.body, 1), margins=(18, 14, 18, 12), spacing=10))
+        head = K.page_head(self.KEY, self.ICO, title, intro)
+        self.setLayout(K.vbox(head, self.bar, (self.body, 1), margins=(22, 18, 22, 14), spacing=12))
+
+    def ink(self) -> str:
+        """This page's colour, for text."""
+        return K.hue(self.KEY, "ink")
 
     def stacked(self, view: QtWidgets.QWidget, title: str, text: str):
-        self.empty = K.empty_state(title, text)
+        self.empty = K.empty_state(title, text, ico=self.ICO, hue=self.KEY)
         self.stack = QtWidgets.QStackedWidget()
         self.stack.addWidget(view)
         self.stack.addWidget(self.empty)
@@ -45,6 +50,7 @@ class Page(QtWidgets.QWidget):
 
 # ==================================================================================================
 class DownloadsPage(Page):
+    KEY, ICO = "downloads", "download"
     STATUS = {"pending": "Waiting", "running": "Downloading", "done": "Finished", "paused": "Stopped", "error": "Problem"}
     END = (("nothing", "Do nothing"), ("notify", "Tell me"), ("sound", "Play a sound"),
            ("shutdown", "Shut down the PC (asks first, 60 s to cancel)"))
@@ -133,7 +139,7 @@ class DownloadsPage(Page):
             where = " / ".join(x for x in (d.get("path") or "", d.get("filename") or "") if x) or "the usual place"
             row = QtWidgets.QTreeWidgetItem([what, sites, where, self.STATUS.get(it["status"], it["status"] or ""), prog])
             row.setData(0, ID, it["id"])
-            col = {"done": C["ok"], "error": C["error"], "running": C["accent"]}.get(it["status"])
+            col = {"done": C["ok"], "error": C["error"], "running": self.ink()}.get(it["status"])
             if col:
                 row.setForeground(3, QtGui.QColor(col))
             self.tree.addTopLevelItem(row)
@@ -396,6 +402,7 @@ class DownloadsPage(Page):
 
 # ==================================================================================================
 class FavoritesPage(Page):
+    KEY, ICO = "favorites", "star"
     def __init__(self, app):
         super().__init__(app, "Favorites", "Searches you keep. 'Check for new pictures' counts what was posted since you last "
                          "opened each one.")
@@ -450,7 +457,7 @@ class FavoritesPage(Page):
             row.setData(4, SORT, float(f["last_viewed"] or 0))
             row.setSizeHint(0, QtCore.QSize(64, 58))
             if new:
-                row.setForeground(2, QtGui.QColor(C["accent"]))
+                row.setForeground(2, QtGui.QColor(self.ink()))
             self.tree.addTopLevelItem(row)
             if f["name"] in sel:
                 row.setSelected(True)
@@ -649,6 +656,7 @@ def every(minutes) -> str:
 
 
 class MonitorsPage(Page):
+    KEY, ICO = "monitors", "bell"
     def __init__(self, app):
         super().__init__(app, "Monitors", "Searches that check themselves. They run while Packrat is open (it can sit next "
                          "to the clock: Settings > Monitoring), and report pictures posted after they were created.")
@@ -700,7 +708,7 @@ class MonitorsPage(Page):
             if m.get("last_error"):
                 row.setForeground(7, QtGui.QColor(C["error"]))
             if m.get("new_count"):
-                row.setForeground(3, QtGui.QColor(C["accent"]))
+                row.setForeground(3, QtGui.QColor(self.ink()))
                 new_total += int(m["new_count"])
             self.tree.addTopLevelItem(row)
             if m["id"] in sel:
@@ -810,6 +818,7 @@ class MonitorsPage(Page):
 
 # ==================================================================================================
 class LogPage(Page):
+    KEY, ICO = "log", "list"
     MAX = 5000
 
     def __init__(self, app):
