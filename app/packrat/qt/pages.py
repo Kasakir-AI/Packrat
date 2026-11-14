@@ -28,7 +28,7 @@ class Page(QtWidgets.QWidget):
         super().__init__()
         self.app = app
         self.setProperty("hue", K.PAGE_HUE.get(self.KEY, "lilac"))
-        self.bar = K.hbox(spacing=6)
+        self.bar = K.Flow(spacing=6)      # wraps in a narrow window
         self.body = K.vbox(spacing=8)
         head = K.page_head(self.KEY, self.ICO, title, intro)
         self.setLayout(K.vbox(head, self.bar, (self.body, 1), margins=(22, 18, 22, 14), spacing=12))
@@ -87,7 +87,7 @@ class DownloadsPage(Page):
                                          "In Browse, search for something, then use <b>Download all results</b>, "
                                          "<b>Download this page</b> or <b>Download selected</b>.<br>They appear here; "
                                          "press Start to download them."), 1)
-        self.phase = K.label("Press Start to download everything in the list.", role="heading")
+        self.phase = K.label("Press Start to download everything in the list.", role="heading", wrap=True)
         self.statline = K.label("", muted=True)
         self.curfile = K.label("", muted=True)
         self.curfile.setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored, QtWidgets.QSizePolicy.Policy.Preferred)
@@ -99,8 +99,11 @@ class DownloadsPage(Page):
         self.pause_btn = K.button("Pause", self.pause, ico="pause")
         self.stop_btn = K.button("Stop", self.stop, ico="stop")
         self.end = QtWidgets.QComboBox()
+        self.end.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.end.setMinimumContentsLength(14)     # its longest choice must not push Start out of a narrow window
         for v, lab in self.END:
             self.end.addItem(lab, v)
+        self.end.view().setMinimumWidth(330)
         cur = str(app.st.get("Batch/end") or "nothing")
         self.end.setCurrentIndex(max(0, [e[0] for e in self.END].index(cur) if cur in [e[0] for e in self.END] else 0))
         self.end.currentIndexChanged.connect(lambda *_: app.st.set("Batch/end", self.end.currentData()))

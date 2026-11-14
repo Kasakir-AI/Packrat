@@ -55,6 +55,25 @@ def test_tag_colours_follow_the_theme_unless_you_chose_your_own():
     assert K.tag_color("general", St({})) == "#000000"                                # "no colour": the text colour
 
 
+def test_a_row_of_buttons_wraps_instead_of_being_cut_off():
+    from PySide6 import QtCore, QtWidgets
+
+    from packrat.qt import common as K
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    buttons = [QtWidgets.QPushButton(t) for t in ("Add a search...", "Add a picture...", "Edit...", "Remove", "Open folder")]
+    row = K.flow(*buttons[:4], None, buttons[4])
+    holder = QtWidgets.QWidget()
+    holder.setLayout(row)
+    one_line = row.sizeHint().width()
+    assert row.heightForWidth(one_line) < row.heightForWidth(one_line // 2)      # narrower: more lines
+    for width in (one_line + 200, one_line // 2):
+        row.setGeometry(QtCore.QRect(0, 0, width, row.heightForWidth(width)))
+        for b in buttons:
+            assert b.geometry().right() < width and b.width() >= b.sizeHint().width()   # whole, and inside
+    assert buttons[4].geometry().right() == width - 1                              # after the gap: at the right end
+    del app
+
+
 def test_guide_markup_becomes_html():
     from packrat.qt.help import guide_html, slug
     html = guide_html("# Title\n\n## Keys here\n- **S**: save `%md5%`\n- [Browse](go:tab:browse)\n\n1. one\n   more\n2. two")

@@ -25,6 +25,14 @@ Nothing moved and nothing works differently; every button, menu and shortcut is 
   are two rows now.
 - The Help window's topic list no longer cuts off its longest title.
 - Empty-list messages kept the old theme's grey after switching light / dark.
+- **Nothing is cut off in a small window any more**, down to the smallest size (860 x 520). Rows of buttons
+  (Downloads, Favorites, Monitors, Site archive) go on to a second line instead of losing their ends; Settings puts
+  a setting's name above its field when there is no room beside it; the sidebar tightens in a short window; the
+  Start button on Downloads and the buttons next to *What to do* on Site archive stay inside the window.
+
+### Documentation
+- The screenshots in the README and the manual show the current window. (The Site archive manual's pictures of
+  the classic control panel are unchanged: that window did not change.)
 
 ## 3.3.1 (2026-11-12) - Danbooru works again
 

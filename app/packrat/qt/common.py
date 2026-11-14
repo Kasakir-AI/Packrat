@@ -116,6 +116,7 @@ QFrame#sidebar QPushButton[flat="true"]:hover { background: %(hover)s; color: %(
 QFrame#card, QFrame[card="true"] { background: %(panel)s; border: 1px solid %(border)s; border-radius: 16px; }
 QToolButton#nav { background: transparent; border: none; border-radius: 13px; padding: 6px 9px; text-align: left;
     color: %(muted)s; font-size: 10.5pt; font-weight: 700; }
+QToolButton#nav[compact="true"] { padding: 3px 9px; border-radius: 11px; }
 QToolButton#nav:hover { background: %(hover)s; color: %(text)s; }
 QToolButton#nav:checked { background: %(sel)s; color: %(link)s; }
 QPushButton, QToolButton { background: %(panel)s; border: 1px solid %(border)s; border-radius: 10px; padding: 6px 13px; }
@@ -704,6 +705,104 @@ def _fill(lay, items, margins, spacing):
             lay.addLayout(it)
         elif isinstance(it, tuple):
             (lay.addLayout if isinstance(it[0], QtWidgets.QLayout) else lay.addWidget)(it[0], it[1])
+        else:
+            lay.addWidget(it)
+    return lay
+
+
+class Flow(QtWidgets.QLayout):
+    """A row of buttons that goes on to a second line when the window is too narrow for it, instead of cutting the
+    buttons off. addStretch() marks a gap: what is added after it sits at the right end of its line."""
+
+    def __init__(self, spacing: int = 6):
+        super().__init__()
+        self._items: list = []
+        self._gap: int | None = None
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setSpacing(spacing)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def addStretch(self, _factor: int = 1):
+        if self._gap is None:
+            self._gap = len(self._items)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, i):
+        return self._items[i] if 0 <= i < len(self._items) else None
+
+    def takeAt(self, i):
+        if not 0 <= i < len(self._items):
+            return None
+        if self._gap is not None and i < self._gap:
+            self._gap -= 1
+        return self._items.pop(i)
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._place(QtCore.QRect(0, 0, width, 0), False)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._place(rect, True)
+
+    def sizeHint(self):          # everything on one line
+        shown = [it.sizeHint() for it in self._items if not it.isEmpty()]
+        m = self.contentsMargins()
+        return QtCore.QSize(sum(s.width() for s in shown) + self.spacing() * max(0, len(shown) - 1) + m.left() + m.right(),
+                            max((s.height() for s in shown), default=0) + m.top() + m.bottom())
+
+    def minimumSize(self):       # the widest single button
+        shown = [it.sizeHint() for it in self._items if not it.isEmpty()]
+        m = self.contentsMargins()
+        return QtCore.QSize(max((s.width() for s in shown), default=0) + m.left() + m.right(),
+                            max((s.height() for s in shown), default=0) + m.top() + m.bottom())
+
+    def _place(self, rect, move: bool) -> int:
+        m, sp = self.contentsMargins(), self.spacing()
+        width = rect.width() - m.left() - m.right()
+        lines, cur, used = [], [], 0
+        for i, it in enumerate(self._items):
+            if it.isEmpty():         # a hidden button takes no room
+                continue
+            w = min(it.sizeHint().width(), max(width, 1))
+            if cur and used + sp + w > width:
+                lines.append(cur)
+                cur, used = [], 0
+            used += (sp if cur else 0) + w
+            cur.append((i, it, w))
+        if cur:
+            lines.append(cur)
+        y = rect.y() + m.top()
+        for line in lines:
+            h = max(it.sizeHint().height() for _i, it, _w in line)
+            free = max(0, width - sum(w for _i, _it, w in line) - sp * (len(line) - 1))
+            x = rect.x() + m.left()
+            for i, it, w in line:
+                if free and self._gap is not None and i >= self._gap:
+                    x, free = x + free, 0
+                if move:
+                    ih = it.sizeHint().height()
+                    it.setGeometry(QtCore.QRect(x, y + (h - ih) // 2, w, ih))
+                x += w + sp
+            y += h + sp
+        return y - (sp if lines else 0) - rect.y() + m.bottom()
+
+
+def flow(*items, spacing: int = 6) -> Flow:
+    """Like hbox, for a row of buttons that may wrap. None is the gap (see Flow)."""
+    lay = Flow(spacing)
+    for it in items:
+        if it is None:
+            lay.addStretch()
         else:
             lay.addWidget(it)
     return lay

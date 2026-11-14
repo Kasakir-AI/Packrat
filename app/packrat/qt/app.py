@@ -75,12 +75,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(860, 520)
 
         # ---- sidebar -----------------------------------------------------------------------------
-        logo = QtWidgets.QLabel()
+        self._compact = None          # a short window gets a tighter sidebar (resizeEvent)
+        self.logo = logo = QtWidgets.QLabel()
         logo.setPixmap(K.app_icon().pixmap(38, 38))
         name = K.label("Packrat", role="wordmark")
         self.nav: dict[str, QtWidgets.QToolButton] = {}
         group = QtWidgets.QButtonGroup(self)
-        side = K.vbox(K.hbox(logo, name, None, margins=(6, 4, 6, 14), spacing=10), margins=(10, 14, 10, 10), spacing=4)
+        self.side_head = K.hbox(logo, name, None, margins=(6, 4, 6, 14), spacing=10)
+        self.side = side = K.vbox(self.side_head, margins=(10, 14, 10, 10), spacing=4)
         for key, text, ico in NAV:
             b = QtWidgets.QToolButton()
             b.setObjectName("nav")
@@ -185,11 +187,28 @@ class MainWindow(QtWidgets.QMainWindow):
         return guides.TAB_TOPIC.get(self.current_page(), "start")
 
     def _restyle_nav(self) -> None:
+        size = 22 if self._compact else 28
         for b in self.nav.values():
             b.setIcon(K.nav_icon(b.property("navico"), b.property("hue")))
-            b.setIconSize(QtCore.QSize(28, 28))
+            b.setIconSize(QtCore.QSize(size, size))
         self.theme_btn.setProperty("ico", "sun" if K.DARK[0] else "moon")
         K.refresh_icons(self)
+
+    def resizeEvent(self, e):
+        """A short window (a small laptop, half a screen): tighten the sidebar so all of it still fits."""
+        super().resizeEvent(e)
+        compact = self.height() < 640
+        if compact == self._compact:
+            return
+        self._compact = compact
+        self.logo.setPixmap(K.app_icon().pixmap(*((30, 30) if compact else (38, 38))))
+        self.side_head.setContentsMargins(6, 0 if compact else 4, 6, 6 if compact else 14)
+        self.side.setContentsMargins(10, 8 if compact else 14, 10, 6 if compact else 10)
+        self.side.setSpacing(1 if compact else 4)
+        size = 22 if compact else 28
+        for b in self.nav.values():
+            b.setIconSize(QtCore.QSize(size, size))
+            K.restyle(b, compact=compact)
 
     def toggle_theme(self) -> None:
         self.set_theme("light" if K.DARK[0] else "dark")

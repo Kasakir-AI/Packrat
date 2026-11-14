@@ -45,7 +45,10 @@ class ArchivePage(QtWidgets.QWidget):
         cur = self.state.get("mode") or cp.DEFAULT_MODE
         self.mode.setCurrentIndex(max(0, [m.key for m in cp.MODES].index(cur) if cur in cp.MODE else 0))
         self.mode.currentIndexChanged.connect(lambda *_: self._changed())
-        self.mode.setMinimumWidth(380)
+        self.mode.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.mode.setMinimumContentsLength(22)     # room for the buttons next to it in a narrow window
+        self.mode.setMaximumWidth(460)
+        self.mode.view().setMinimumWidth(380)
         self.mode_help = K.label("", muted=True, wrap=True)
         self.start_btn = K.button("Start", self.start, accent=True, ico="play")
         self.start_btn.setMinimumWidth(120)
@@ -54,7 +57,7 @@ class ArchivePage(QtWidgets.QWidget):
         head = K.page_head("archive", "box", "Site archive",
                            "A complete copy of e6ai or e621: every post, file and its details, checked file by file. It can "
                            "take days and hundreds of GB; stop whenever you like, Start continues.")
-        top = K.hbox(K.label("What to do"), self.mode, None, self.pause_btn, self.stop_btn, self.start_btn)
+        top = K.hbox(K.label("What to do"), (self.mode, 20), None, self.pause_btn, self.stop_btn, self.start_btn)
 
         self.tabs = QtWidgets.QTabWidget()
         for tab in cp.TABS:
@@ -75,14 +78,14 @@ class ArchivePage(QtWidgets.QWidget):
         f = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.SystemFont.FixedFont)
         f.setPointSize(9)
         self.logview.setFont(f)
-        tools = K.hbox(K.button("Open the archive folder", self.open_folder, ico="folder"),
+        tools = K.flow(K.button("Open the archive folder", self.open_folder, ico="folder"),
                        K.button("Open the report", self.open_report, tip="The completeness report, after a 'report' or full run"),
                        K.button("Copy the command", self.copy_command, tip="The command line that Start runs, for a console "
                                                                            "or Task Scheduler"),
                        K.button("Import settings from an older copy...", self.import_previous,
                                 tip="Use the settings and the archive folder of an e6ai Archiver / older Packrat folder. "
                                     "Nothing there is changed or moved, and nothing is downloaded again."),
-                       K.button("Help", lambda: app.open_help("archive"), ico="help"), None)
+                       K.button("Help", lambda: app.open_help("archive"), ico="help"))
         prog = K.widget(K.vbox(self.phase, self.bar, K.hbox(self.overall, None, self.speed), self.file, self.counts,
                                margins=(14, 12, 14, 12), spacing=5), "card")
         run_tab = K.widget(K.vbox(prog, (self.logview, 1), margins=(0, 10, 0, 0), spacing=10))
