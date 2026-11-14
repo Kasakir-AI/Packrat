@@ -32,8 +32,8 @@ Screenshots (in `screenshots\`): [Browse](screenshots/packrat-browse.png), [dark
 [Monitors](screenshots/packrat-monitors.png), [File names](screenshots/packrat-settings-filenames.png),
 [Tools](screenshots/packrat-tools.png), [Site archive](screenshots/packrat-site-archive.png),
 [Help](screenshots/packrat-help.png), [Help search](screenshots/packrat-help-search.png),
-[More search options](screenshots/packrat-search-options.png), [Advanced view](screenshots/packrat-browse-advanced.png),
-[First start](screenshots/packrat-first-start.png).
+[First start](screenshots/packrat-first-start.png). From the classic window (`Start Packrat (classic window).bat`):
+[More search options](screenshots/packrat-search-options.png), [Advanced view](screenshots/packrat-browse-advanced.png).
 
 Contents: [Quick start](#quick-start) - [Browse](#browse) - [Viewer](#viewer) - [Downloads](#downloads) -
 [File names](#file-names) - [Post-filters and the blacklist](#post-filters-and-the-blacklist) -

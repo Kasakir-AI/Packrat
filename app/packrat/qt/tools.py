@@ -31,18 +31,27 @@ class ToolsPage(QtWidgets.QWidget):
         ("Desktop shortcut", "Put a Packrat icon on the desktop (and the Start menu).", "shortcut"),
     )
 
+    ICONS = {"import_grabber": "import", "rename": "pencil", "md5_fixer": "hash", "blacklist_fixer": "shield",
+             "empty_dirs": "folder", "tag_loader": "tag", "registries": "addon", "schedule": "clock", "backup": "save",
+             "clear_cache": "sparkle", "shortcut": "screen"}
+
     def __init__(self, app):
         super().__init__()
         self.app = app
         self.cancel = threading.Event()
         self.busy = False
+        self.setProperty("hue", K.PAGE_HUE["tools"])
         grid = QtWidgets.QGridLayout()
-        grid.setSpacing(10)
+        grid.setSpacing(12)
         for i, (title, text, fn) in enumerate(self.TOOLS):
-            b = K.button("Open", getattr(self, fn))
-            card = K.widget(K.vbox(K.label(title, role="heading"), K.label(text, muted=True, wrap=True), None,
-                                   K.hbox(b, None), margins=(14, 12, 14, 12), spacing=6), "card")
-            card.setMinimumHeight(142)
+            tint = K.HUES[i % len(K.HUES)]       # the tools are a row of differently coloured drawers
+            b = K.button("Open", getattr(self, fn), accent=True)
+            b.setProperty("hue", tint)
+            card = K.widget(K.vbox(K.hbox(K.tile_label(self.ICONS.get(fn, "wrench"), tint, 36),
+                                          (K.label(title, role="heading", wrap=True), 1), spacing=11),
+                                   K.label(text, muted=True, wrap=True), None,
+                                   K.hbox(b, None), margins=(16, 14, 16, 14), spacing=8), "card")
+            card.setMinimumHeight(158)
             grid.addWidget(card, i // 3, i % 3)
         holder = QtWidgets.QWidget()
         holder.setLayout(grid)
@@ -61,7 +70,9 @@ class ToolsPage(QtWidgets.QWidget):
         split.addWidget(K.widget(K.vbox(K.hbox(K.label("Results", role="heading"), self.prog, None, self.cancel_btn,
                                                K.button("Clear", self.out.clear)), (self.out, 1), spacing=6)))
         split.setSizes([540, 200])
-        self.setLayout(K.vbox(K.label("Tools", role="title"), (split, 1), margins=(18, 14, 18, 12), spacing=10))
+        self.setLayout(K.vbox(K.page_head("tools", "wrench", "Tools", "Jobs you run now and then: bring things over from "
+                                          "Grabber, tidy what you have saved, keep a backup."),
+                              (split, 1), margins=(22, 18, 22, 14), spacing=12))
 
     # ---- plumbing --------------------------------------------------------------------------------
     def say(self, text: str):

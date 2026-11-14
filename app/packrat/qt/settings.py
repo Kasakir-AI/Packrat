@@ -106,6 +106,9 @@ class SettingsPage(QtWidgets.QWidget):
     def __init__(self, app):
         super().__init__()
         self.app, self.st = app, app.st
+        self.setProperty("hue", K.PAGE_HUE["settings"])
+        self._narrow = False
+        self._forms, self._titles, self._spacers = [], [], []     # of the page that is shown; see _set_narrow
         self.pending: dict = {}
         self.timer = QtCore.QTimer(self, singleShot=True, interval=500, timeout=self._flush)
         self.find = QtWidgets.QLineEdit()
@@ -125,9 +128,11 @@ class SettingsPage(QtWidgets.QWidget):
         self.scroll.setWidgetResizable(True)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.reset_btn = K.button("Reset this page", self.reset_page, tip="Put every setting on this page back to its default")
-        right = K.vbox(K.hbox(self.title, None, self.saved, self.reset_btn), self.intro, (self.scroll, 1), spacing=6)
+        head = K.hbox(K.tile_label("sliders", K.PAGE_HUE["settings"], 44),
+                      (K.vbox(K.hbox(self.title, None, self.saved, self.reset_btn), self.intro, spacing=1), 1), spacing=14)
+        right = K.vbox(head, (self.scroll, 1), spacing=10)
         left = K.vbox(self.find, (self.list, 1), spacing=8)
-        self.setLayout(K.hbox(left, (right, 1), margins=(18, 14, 18, 12), spacing=16))
+        self.setLayout(K.hbox(left, (right, 1), margins=(22, 18, 22, 14), spacing=18))
         self.current = "Basics"
         self.list.setCurrentRow(0)
         self.show_named("Basics")
@@ -193,6 +198,7 @@ class SettingsPage(QtWidgets.QWidget):
         body = QtWidgets.QVBoxLayout()
         body.setContentsMargins(0, 4, 12, 12)
         body.setSpacing(14)
+        self._forms, self._titles, self._spacers = [], [], []
         groups: dict[str, QtWidgets.QFormLayout] = {}
         for s in rows:
             gname = f"{s.page}  >  {s.group}" if with_page else s.group
@@ -205,6 +211,7 @@ class SettingsPage(QtWidgets.QWidget):
                 form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 form.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
                 groups[gname] = form
+                self._forms.append(form)
                 body.addWidget(box)
             w = self._field(s)
             if w is None:
@@ -214,6 +221,7 @@ class SettingsPage(QtWidgets.QWidget):
             if s.kind == "bool":
                 sp = QtWidgets.QLabel("")
                 sp.setMinimumWidth(190)
+                self._spacers.append(sp)
                 form.addRow(sp, w)
             else:
                 lab = QtWidgets.QLabel(s.label)
@@ -221,19 +229,45 @@ class SettingsPage(QtWidgets.QWidget):
                 lab.setMinimumWidth(190)
                 lab.setWordWrap(True)
                 lab.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                self._titles.append(lab)
                 form.addRow(lab, w)
             if basics and s.help:
                 hl = K.label(s.help, muted=True, wrap=True)
                 hl.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
                 hl.setMinimumWidth(240)
-                form.addRow(" ", hl)
+                sp = QtWidgets.QLabel(" ")
+                self._spacers.append(sp)
+                form.addRow(sp, hl)
         if not rows:
             body.addWidget(K.label("Nothing found.", muted=True))
         body.addStretch(1)
         holder = QtWidgets.QWidget()
         holder.setLayout(body)
         holder.setMaximumWidth(K.FORM_MAX_WIDTH)   # a 2000 px wide text box is hard to read
+        self._set_narrow(self._narrow)
         self.scroll.setWidget(holder)
+
+    def _set_narrow(self, narrow: bool):
+        """In a narrow window a setting's name goes above its field instead of beside it, so the field is not cut
+        off at the right."""
+        self._narrow = narrow
+        self.list.setFixedWidth(150 if narrow else 200)
+        wrap = QtWidgets.QFormLayout.RowWrapPolicy
+        side = Qt.AlignmentFlag.AlignLeft if narrow else Qt.AlignmentFlag.AlignRight
+        for form in self._forms:
+            form.setRowWrapPolicy(wrap.WrapAllRows if narrow else wrap.DontWrapRows)
+        for lab in self._titles:
+            lab.setMinimumWidth(0 if narrow else 190)
+            lab.setWordWrap(not narrow)     # above its field a name has the whole line to itself
+            lab.setAlignment(side | Qt.AlignmentFlag.AlignVCenter)
+        for sp in self._spacers:        # empty cells that only line the two columns up
+            sp.setVisible(not narrow)
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        narrow = self.width() < 800
+        if narrow != self._narrow:
+            self._set_narrow(narrow)
 
     def _changed(self, key, value):
         self.pending[key] = value

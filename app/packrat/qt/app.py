@@ -17,7 +17,7 @@ from PySide6 import QtCore, QtGui, QtNetwork, QtWidgets
 
 from .. import __version__, paths
 from . import common as K
-from .common import C, Qt
+from .common import Qt
 
 log = logging.getLogger("packrat")
 APP_ID = "Kasakir.Packrat"          # Windows groups taskbar buttons by this, instead of "python.exe"
@@ -75,17 +75,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(860, 520)
 
         # ---- sidebar -----------------------------------------------------------------------------
-        logo = QtWidgets.QLabel()
-        logo.setPixmap(K.app_icon().pixmap(34, 34))
-        name = K.label("Packrat", role="title")
+        self._compact = None          # a short window gets a tighter sidebar (resizeEvent)
+        self.logo = logo = QtWidgets.QLabel()
+        logo.setPixmap(K.app_icon().pixmap(38, 38))
+        name = K.label("Packrat", role="wordmark")
         self.nav: dict[str, QtWidgets.QToolButton] = {}
         group = QtWidgets.QButtonGroup(self)
-        side = K.vbox(K.hbox(logo, name, None, margins=(6, 4, 6, 12)), margins=(10, 12, 10, 10), spacing=3)
+        self.side_head = K.hbox(logo, name, None, margins=(6, 4, 6, 14), spacing=10)
+        self.side = side = K.vbox(self.side_head, margins=(10, 14, 10, 10), spacing=4)
         for key, text, ico in NAV:
             b = QtWidgets.QToolButton()
             b.setObjectName("nav")
             b.setText("  " + text)
             b.setProperty("navico", ico)
+            b.setProperty("hue", K.PAGE_HUE[key])      # every page has its own pastel (common.PAGE_HUE)
             b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             b.setCheckable(True)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -103,11 +106,10 @@ class MainWindow(QtWidgets.QMainWindow):
                                  tip="How to use Packrat (F1)")
         self.theme_btn = K.button("", self.toggle_theme, flat=True, ico="moon", tip="Light / dark (Ctrl+Shift+D)")
         for b in (self.sites_btn, self.help_btn):
-            b.setStyleSheet("text-align: left;")
             side.addWidget(b)
         side.addLayout(K.hbox(K.label(f"v{__version__}", muted=True), None, self.theme_btn, margins=(8, 4, 0, 0)))
         sidebar = K.widget(side, "sidebar")
-        sidebar.setFixedWidth(196)
+        sidebar.setFixedWidth(200)
 
         # ---- pages -------------------------------------------------------------------------------
         self.stack = QtWidgets.QStackedWidget()
@@ -141,6 +143,7 @@ class MainWindow(QtWidgets.QMainWindow):
                       "monitors": self.monitors, "archive": self.archive, "settings": self.settings_page,
                       "tools": self.tools, "log": self.logpage}
         for key, _t, _i in NAV:
+            self.pages[key].setProperty("hue", K.PAGE_HUE[key])
             self.stack.addWidget(self.pages[key])
         self._restyle_nav()
 
@@ -184,11 +187,28 @@ class MainWindow(QtWidgets.QMainWindow):
         return guides.TAB_TOPIC.get(self.current_page(), "start")
 
     def _restyle_nav(self) -> None:
+        size = 22 if self._compact else 28
         for b in self.nav.values():
-            b.setIcon(K.icon(b.property("navico"), C["text"]))
-            b.setIconSize(QtCore.QSize(18, 18))
+            b.setIcon(K.nav_icon(b.property("navico"), b.property("hue")))
+            b.setIconSize(QtCore.QSize(size, size))
         self.theme_btn.setProperty("ico", "sun" if K.DARK[0] else "moon")
         K.refresh_icons(self)
+
+    def resizeEvent(self, e):
+        """A short window (a small laptop, half a screen): tighten the sidebar so all of it still fits."""
+        super().resizeEvent(e)
+        compact = self.height() < 640
+        if compact == self._compact:
+            return
+        self._compact = compact
+        self.logo.setPixmap(K.app_icon().pixmap(*((30, 30) if compact else (38, 38))))
+        self.side_head.setContentsMargins(6, 0 if compact else 4, 6, 6 if compact else 14)
+        self.side.setContentsMargins(10, 8 if compact else 14, 10, 6 if compact else 10)
+        self.side.setSpacing(1 if compact else 4)
+        size = 22 if compact else 28
+        for b in self.nav.values():
+            b.setIconSize(QtCore.QSize(size, size))
+            K.restyle(b, compact=compact)
 
     def toggle_theme(self) -> None:
         self.set_theme("light" if K.DARK[0] else "dark")
@@ -344,6 +364,7 @@ class MainWindow(QtWidgets.QMainWindow):
         old = self.archive
         i = self.stack.indexOf(old)
         self.archive = ArchivePage(self)
+        self.archive.setProperty("hue", K.PAGE_HUE["archive"])
         self.pages["archive"] = self.archive
         self.stack.insertWidget(i, self.archive)
         self.stack.removeWidget(old)
@@ -563,6 +584,7 @@ def main(argv=None) -> int:
     from ..grab import library
     if smoke_run:
         library.shared().set_state("setup_done", True)
+    K.load_fonts(qapp)
     K.apply_theme(qapp, str(library.shared().get_state("qt_theme") or "system"))
 
     def excepthook(tp, val, tb):

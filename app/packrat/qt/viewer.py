@@ -342,7 +342,7 @@ class Viewer(QtWidgets.QWidget):
         return self.tab.items[self.index].site
 
     def themed(self):
-        bg = str(self.app.st.get("Viewer/imageBackgroundColor") or "") or ("#0d0e12" if K.DARK[0] else "#e4e6ec")
+        bg = str(self.app.st.get("Viewer/imageBackgroundColor") or "") or C["stage"]
         self.view.set_background(bg)
         K.refresh_icons(self)
         self._fill_tags()
@@ -546,7 +546,7 @@ class Viewer(QtWidgets.QWidget):
         for t in tags:
             it = QtWidgets.QListWidgetItem(f"{t.name}   {t.count:,}" if counts and t.count else t.name)
             it.setData(Qt.ItemDataRole.UserRole, t.name)
-            col = uikit.tag_color(t.type or "general", st, K.DARK[0])
+            col = K.tag_color(t.type or "general", st)
             if not K.DARK[0] and col.lower() in ("#000000", "#000"):
                 col = C["text"]
             it.setForeground(QtGui.QColor(col))
@@ -564,7 +564,7 @@ class Viewer(QtWidgets.QWidget):
             s = str(s)
             if s.startswith(("http://", "https://")):
                 short = s.split("//", 1)[1][:34]
-                rows.append(("Source", f'<a style="color:{C["accent"]}" href="{K.esc(s)}">{K.esc(short)}</a>'))
+                rows.append(("Source", f'<a style="color:{C["link"]}" href="{K.esc(s)}">{K.esc(short)}</a>'))
             elif s:
                 rows.append(("Source", K.esc(s[:60])))
         self.details.setText("<table cellspacing='2'>" + "".join(

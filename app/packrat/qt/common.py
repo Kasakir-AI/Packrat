@@ -1,5 +1,5 @@
-"""Shared pieces of Packrat's Qt window: the look (light / dark), icons, background work, thumbnails and
-small widget helpers. Nothing here knows about a particular page."""
+"""Shared pieces of Packrat's Qt window: the look (pastels, one colour per page, light / dark), the typefaces,
+icons, background work, thumbnails and small widget helpers. Nothing here knows what is on a particular page."""
 from __future__ import annotations
 
 import hashlib
@@ -21,18 +21,67 @@ ASSETS = Path(__file__).resolve().parent.parent / "assets"
 FORM_MAX_WIDTH = 1100    # settings-style forms stop growing here; wider fields only spread the eye
 
 # ---- colours -------------------------------------------------------------------------------------
-PALETTES = {
-    "dark": dict(bg="#15161c", panel="#1c1e26", raised="#262935", hover="#30344a", border="#33374a",
-                 text="#e7e9f1", muted="#9aa1b6", accent="#6f8cff", accent_text="#ffffff", accent_hover="#86a0ff",
-                 brand="#f0b663", ok="#56c98a", warn="#f0b663", error="#ff7a7a", fav="#ff8ad1", sel="#2c3a66",
-                 field="#12131a", shadow="#000000"),
-    "light": dict(bg="#f3f4f8", panel="#ffffff", raised="#e9ebf2", hover="#dfe3ee", border="#d3d7e2",
-                  text="#1d1f28", muted="#61687a", accent="#3d63e0", accent_text="#ffffff", accent_hover="#5277ee",
-                  brand="#c9821c", ok="#1f9d5c", warn="#b56b00", error="#cc3333", fav="#d1409a", sel="#d5e0ff",
-                  field="#ffffff", shadow="#9aa0b0"),
+# Every page has its own pastel (its "hue"): Browse is lilac, Downloads mint, Favorites rose ... The colour says
+# where you are: the page's row in the sidebar, its main button, its progress bar and its ticks all wear it.
+# A hue is five tones:
+#   fill    a soft wash        the sidebar pill, icon tiles, selected rows
+#   strong  the pastel itself  main buttons, progress bars, ticked boxes
+#   hover   strong, one step on
+#   line    outlines           the field you type in, the selected picture
+#   ink     the hue as text    readable on the window's background
+HUES = ("lilac", "mint", "rose", "butter", "sky", "orchid", "peach", "aqua")
+TONES = ("fill", "strong", "hover", "line", "ink")
+PAGE_HUE = {"browse": "lilac", "downloads": "mint", "favorites": "rose", "monitors": "butter", "archive": "sky",
+            "settings": "orchid", "tools": "peach", "log": "aqua"}
+_HUE_TONES = {
+    "light": {"lilac": ("#e6e3ff", "#bcb5ff", "#aaa2fa", "#8f85ee", "#4a3fa6"),
+              "mint": ("#d5f4e5", "#a3e4c4", "#8dd8b3", "#4fbf8e", "#1f7653"),
+              "rose": ("#ffdfea", "#ffb6d0", "#fba1c1", "#ee79a6", "#a8356a"),
+              "butter": ("#fff0c2", "#ffde80", "#f8d166", "#ddb02e", "#856000"),
+              "sky": ("#d8edff", "#a9d6fa", "#92c8f3", "#5fa9e3", "#1e659e"),
+              "orchid": ("#f2dffb", "#dfb8f5", "#d4a4f0", "#bc7fe0", "#7f3fa8"),
+              "peach": ("#ffe3d2", "#ffc2a1", "#fbb089", "#ee8f5e", "#a34d27"),
+              "aqua": ("#d6f1f1", "#a6dfe0", "#90d3d5", "#55b7bb", "#26727a")},
+    "dark": {"lilac": ("#322e57", "#b9b2ff", "#ccc7ff", "#9c93f5", "#c2bcff"),
+             "mint": ("#1e4133", "#9fe3c1", "#b7edd2", "#5cc79a", "#a6e6c6"),
+             "rose": ("#522539", "#ffb3ce", "#ffc8db", "#ee7faa", "#ffbad2"),
+             "butter": ("#473a15", "#ffdd7a", "#ffe699", "#d9b03a", "#ffe08a"),
+             "sky": ("#1e3a52", "#a5d4fa", "#bddffc", "#62abe4", "#add8fa"),
+             "orchid": ("#412951", "#ddb4f5", "#e7c8f8", "#bd82e0", "#e0bbf6"),
+             "peach": ("#522e1d", "#ffc09e", "#ffd0b6", "#ee925f", "#ffc6a6"),
+             "aqua": ("#1c3f42", "#a3dedf", "#bae8e9", "#58b9bd", "#aae1e2")},
 }
+_BASE = {
+    # text on a pastel button is the same dark ink in both themes: the buttons stay pastel at night
+    "light": dict(bg="#faf9fd", side="#f1eef8", panel="#ffffff", raised="#f1eef7", hover="#e8e4f1", border="#e0dbeb",
+                  text="#2b2838", muted="#6c6682", accent_text="#27233a", error="#c13b55", field="#ffffff",
+                  shadow="#b9b2cc", edge="#b9b2cc", stage="#eceaf3"),
+    "dark": dict(bg="#1b1924", side="#15131c", panel="#23212f", raised="#2d2a3b", hover="#3a3649", border="#3b374c",
+                 text="#ece9f5", muted="#a6a0bc", accent_text="#1b1924", error="#ff9aa8", field="#16141e",
+                 shadow="#000000", edge="#5d5873", stage="#100f16"),
+}
+
+
+def _palette(name: str) -> dict:
+    pal = dict(_BASE[name])
+    for hue, tones in _HUE_TONES[name].items():
+        pal.update({f"{hue}_{tone}": col for tone, col in zip(TONES, tones)})
+    # the names the pages use for "the usual accent" (lilac, Browse's hue) and for meanings
+    pal.update(accent=pal["lilac_strong"], accent_hover=pal["lilac_hover"], sel=pal["lilac_fill"],
+               link=pal["lilac_ink"], ring=pal["lilac_line"], ok=pal["mint_ink"], warn=pal["butter_ink"],
+               fav=pal["rose_ink"], brand=pal["peach_strong"])
+    return pal
+
+
+PALETTES = {name: _palette(name) for name in ("dark", "light")}
 C: dict = dict(PALETTES["dark"])     # the current palette; updated in place by apply_theme
 DARK = [True]
+FONTS = {"body": "", "display": ""}   # the family names Qt gave the bundled typefaces ("" = not loaded)
+
+
+def hue(name: str, tone: str = "strong") -> str:
+    """A colour of a hue or of a page: hue("mint", "fill"), hue("downloads", "ink")."""
+    return C[f"{PAGE_HUE.get(name, name if name in HUES else 'lilac')}_{tone}"]
 
 
 def system_dark() -> bool:
@@ -54,24 +103,28 @@ QSS = """
 * { font-size: 10pt; }
 QWidget { background: %(bg)s; color: %(text)s; selection-background-color: %(accent)s; selection-color: %(accent_text)s; }
 QMainWindow, QDialog { background: %(bg)s; }
-QToolTip { background: %(raised)s; color: %(text)s; border: 1px solid %(border)s; padding: 5px 7px; border-radius: 6px; }
+QToolTip { background: %(panel)s; color: %(text)s; border: 1px solid %(border)s; padding: 6px 9px; border-radius: 8px; }
 QLabel { background: transparent; }
 QLabel[muted="true"] { color: %(muted)s; }
-QLabel[role="title"] { font-size: 15pt; font-weight: 600; }
-QLabel[role="heading"] { font-size: 11pt; font-weight: 600; }
+QLabel[role="title"] { font-size: 18pt; }
+QLabel[role="heading"] { font-size: 12pt; }
 QLabel[role="error"] { color: %(error)s; }
 QLabel[role="ok"] { color: %(ok)s; }
-QFrame#sidebar { background: %(panel)s; border: none; border-right: 1px solid %(border)s; }
-QFrame#card, QFrame[card="true"] { background: %(panel)s; border: 1px solid %(border)s; border-radius: 10px; }
-QToolButton#nav { background: transparent; border: none; border-radius: 8px; padding: 9px 12px; text-align: left;
-    color: %(muted)s; font-weight: 500; }
-QToolButton#nav:hover { background: %(raised)s; color: %(text)s; }
-QToolButton#nav:checked { background: %(sel)s; color: %(text)s; font-weight: 600; }
-QPushButton, QToolButton { background: %(raised)s; border: 1px solid %(border)s; border-radius: 7px; padding: 6px 13px; }
-QPushButton:hover, QToolButton:hover { background: %(hover)s; }
-QPushButton:pressed, QToolButton:pressed { background: %(border)s; }
+QFrame#sidebar { background: %(side)s; border: none; border-right: 1px solid %(border)s; }
+QFrame#sidebar QPushButton[flat="true"] { color: %(muted)s; text-align: left; }
+QFrame#sidebar QPushButton[flat="true"]:hover { background: %(hover)s; color: %(text)s; }
+QFrame#card, QFrame[card="true"] { background: %(panel)s; border: 1px solid %(border)s; border-radius: 16px; }
+QToolButton#nav { background: transparent; border: none; border-radius: 13px; padding: 6px 9px; text-align: left;
+    color: %(muted)s; font-size: 10.5pt; font-weight: 700; }
+QToolButton#nav[compact="true"] { padding: 3px 9px; border-radius: 11px; }
+QToolButton#nav:hover { background: %(hover)s; color: %(text)s; }
+QToolButton#nav:checked { background: %(sel)s; color: %(link)s; }
+QPushButton, QToolButton { background: %(panel)s; border: 1px solid %(border)s; border-radius: 10px; padding: 6px 13px; }
+QPushButton:hover, QToolButton:hover { background: %(raised)s; border-color: %(edge)s; }
+QPushButton:pressed, QToolButton:pressed { background: %(hover)s; }
+QPushButton:checked { background: %(sel)s; border-color: %(ring)s; color: %(link)s; }
 QPushButton:disabled, QToolButton:disabled { color: %(muted)s; background: %(bg)s; border-color: %(raised)s; }
-QPushButton[accent="true"] { background: %(accent)s; color: %(accent_text)s; border-color: %(accent)s; font-weight: 600; }
+QPushButton[accent="true"] { background: %(accent)s; color: %(accent_text)s; border-color: %(accent)s; font-weight: 700; }
 QPushButton[accent="true"]:hover { background: %(accent_hover)s; border-color: %(accent_hover)s; }
 QPushButton[accent="true"]:disabled { background: %(raised)s; color: %(muted)s; border-color: %(raised)s; }
 QPushButton[flat="true"], QToolButton[flat="true"] { background: transparent; border-color: transparent; padding: 5px 8px; }
@@ -80,67 +133,142 @@ QToolButton::menu-indicator, QPushButton::menu-indicator { image: none; width: 0
 QTabBar::close-button { image: none; background: transparent; border-radius: 4px; width: 14px; height: 14px; margin: 2px; }
 QTabBar::close-button:hover { background: %(hover)s; }
 QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextBrowser {
-    background: %(field)s; border: 1px solid %(border)s; border-radius: 7px; padding: 5px 8px; }
-QLineEdit:focus, QPlainTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border-color: %(accent)s; }
-QLineEdit#search { padding: 8px 12px; font-size: 11pt; border-radius: 9px; }
-QComboBox::drop-down { border: none; width: 22px; }
-QComboBox::down-arrow { image: url(%(img_down)s); width: 10px; height: 10px; margin-right: 8px; }
-QComboBox QAbstractItemView { background: %(panel)s; border: 1px solid %(border)s; selection-background-color: %(sel)s;
-    selection-color: %(text)s; outline: 0; }
+    background: %(field)s; border: 1px solid %(border)s; border-radius: 10px; padding: 6px 10px; }
+QLineEdit:focus, QPlainTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border-color: %(ring)s; }
+QLineEdit#search { padding: 9px 14px; font-size: 11pt; border-radius: 14px; }
+QComboBox::drop-down { border: none; width: 24px; }
+QComboBox::down-arrow { image: url(%(img_down)s); width: 10px; height: 10px; margin-right: 10px; }
+QComboBox QAbstractItemView { background: %(panel)s; border: 1px solid %(border)s; border-radius: 8px;
+    selection-background-color: %(sel)s; selection-color: %(text)s; outline: 0; }
 QSpinBox, QDoubleSpinBox { padding-right: 2px; }
-QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 18px;
-    border: none; background: transparent; margin-top: 2px; }
-QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 18px;
-    border: none; background: transparent; margin-bottom: 2px; }
+QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 20px;
+    border: none; background: transparent; margin-top: 3px; }
+QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 20px;
+    border: none; background: transparent; margin-bottom: 3px; }
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow { image: url(%(img_up)s); width: 8px; height: 8px; }
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow { image: url(%(img_down)s); width: 8px; height: 8px; }
-QMenu { background: %(panel)s; border: 1px solid %(border)s; border-radius: 8px; padding: 5px; }
-QMenu::item { padding: 6px 26px 6px 14px; border-radius: 5px; }
+QMenu { background: %(panel)s; border: 1px solid %(border)s; border-radius: 12px; padding: 6px; }
+QMenu::item { padding: 7px 26px 7px 14px; border-radius: 8px; }
 QMenu::item:selected { background: %(sel)s; color: %(text)s; }
 QMenu::item:disabled { color: %(muted)s; }
-QMenu::separator { height: 1px; background: %(border)s; margin: 5px 8px; }
+QMenu::separator { height: 1px; background: %(border)s; margin: 6px 10px; }
 QTabWidget::pane { border: none; }
 QTabBar { background: transparent; qproperty-drawBase: 0; }
-QTabBar::tab { background: transparent; color: %(muted)s; padding: 7px 14px; border: none;
-    border-bottom: 2px solid transparent; margin-right: 2px; }
-QTabBar::tab:hover { color: %(text)s; }
-QTabBar::tab:selected { color: %(text)s; border-bottom: 2px solid %(accent)s; font-weight: 600; }
+QTabBar::tab { background: transparent; color: %(muted)s; padding: 6px 14px; border: none; border-radius: 10px;
+    margin: 2px 3px 4px 0; }
+QTabBar::tab:hover { background: %(raised)s; color: %(text)s; }
+QTabBar::tab:selected { background: %(sel)s; color: %(link)s; font-weight: 700; }
 QTreeView, QListView, QTableView, QListWidget, QTreeWidget, QTableWidget { background: %(panel)s;
-    border: 1px solid %(border)s; border-radius: 9px; outline: 0; alternate-background-color: %(bg)s; }
-QTreeView::item, QListWidget::item, QTableView::item { padding: 4px 6px; border: none; }
+    border: 1px solid %(border)s; border-radius: 12px; padding: 3px; outline: 0; alternate-background-color: %(bg)s; }
+QTreeView::item, QListWidget::item, QTableView::item { padding: 5px 7px; border: none; }
+QListWidget::item { border-radius: 7px; }
 QTreeView::item:hover, QListWidget::item:hover { background: %(raised)s; }
 QTreeView::item:selected, QListWidget::item:selected, QTableView::item:selected { background: %(sel)s; color: %(text)s; }
-QListView#grid { background: %(bg)s; border: none; }
+QListView#grid { background: %(bg)s; border: none; padding: 0; }
+QHeaderView { background: transparent; }
 QHeaderView::section { background: %(panel)s; color: %(muted)s; border: none; border-bottom: 1px solid %(border)s;
-    padding: 7px 8px; font-weight: 600; }
+    padding: 8px 8px; font-weight: 700; }
 QScrollBar:vertical { background: transparent; width: 12px; margin: 2px; }
-QScrollBar::handle:vertical { background: %(border)s; border-radius: 4px; min-height: 30px; }
-QScrollBar::handle:vertical:hover { background: %(muted)s; }
+QScrollBar::handle:vertical { background: %(border)s; border-radius: 4px; min-height: 34px; }
+QScrollBar::handle:vertical:hover { background: %(edge)s; }
 QScrollBar:horizontal { background: transparent; height: 12px; margin: 2px; }
-QScrollBar::handle:horizontal { background: %(border)s; border-radius: 4px; min-width: 30px; }
+QScrollBar::handle:horizontal { background: %(border)s; border-radius: 4px; min-width: 34px; }
+QScrollBar::handle:horizontal:hover { background: %(edge)s; }
 QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page { background: none; border: none;
     width: 0; height: 0; }
-QProgressBar { background: %(raised)s; border: none; border-radius: 5px; height: 10px; text-align: center; color: transparent; }
-QProgressBar::chunk { background: %(accent)s; border-radius: 5px; }
-QCheckBox, QRadioButton { background: transparent; spacing: 7px; }
-QCheckBox::indicator, QRadioButton::indicator { width: 16px; height: 16px; border: 1px solid %(muted)s;
-    border-radius: 4px; background: %(field)s; }
-QRadioButton::indicator { border-radius: 8px; }
-QCheckBox::indicator:checked, QListView::indicator:checked { background: %(accent)s; border-color: %(accent)s; image: url(%(img_check)s); }
-QRadioButton::indicator:checked { background: %(accent)s; border: 4px solid %(field)s; }
-QListView::indicator { width: 16px; height: 16px; border: 1px solid %(muted)s; border-radius: 4px; background: %(field)s; }
+QProgressBar { background: %(raised)s; border: none; border-radius: 6px; height: 12px; text-align: center; color: transparent; }
+QProgressBar::chunk { background: %(accent)s; border-radius: 6px; }
+QCheckBox, QRadioButton { background: transparent; spacing: 8px; }
+QCheckBox::indicator, QRadioButton::indicator { width: 17px; height: 17px; border: 1px solid %(edge)s;
+    border-radius: 6px; background: %(field)s; }
+QRadioButton::indicator { border-radius: 9px; }
+QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %(ring)s; }
+QCheckBox::indicator:checked, QListView::indicator:checked { background: %(accent)s; border-color: %(ring)s; image: url(%(img_check)s); }
+QRadioButton::indicator:checked { background: %(ring)s; border: 4px solid %(field)s; }
+QListView::indicator { width: 17px; height: 17px; border: 1px solid %(edge)s; border-radius: 6px; background: %(field)s; }
 QCheckBox:disabled, QLabel:disabled { color: %(muted)s; }
-QGroupBox { border: 1px solid %(border)s; border-radius: 9px; margin-top: 14px; padding: 12px 10px 8px 10px; font-weight: 600; }
-QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 5px; color: %(muted)s; }
+QGroupBox { border: 1px solid %(border)s; border-radius: 14px; margin-top: 16px; padding: 14px 12px 10px 12px; font-weight: 700; }
+QGroupBox::title { subcontrol-origin: margin; left: 14px; padding: 0 6px; color: %(muted)s; }
 QSplitter::handle { background: transparent; }
-QStatusBar { background: %(panel)s; border-top: 1px solid %(border)s; color: %(muted)s; }
+QStatusBar { background: %(side)s; border-top: 1px solid %(border)s; color: %(muted)s; }
 QStatusBar::item { border: none; }
 QSlider::groove:horizontal { height: 4px; background: %(border)s; border-radius: 2px; }
-QSlider::sub-page:horizontal { background: %(accent)s; border-radius: 2px; }
+QSlider::sub-page:horizontal { background: %(ring)s; border-radius: 2px; }
 QSlider::handle:horizontal { background: %(text)s; width: 12px; height: 12px; margin: -4px 0; border-radius: 6px; }
 QScrollArea { border: none; background: transparent; }
 QScrollArea > QWidget > QWidget { background: transparent; }
 """
+
+# The same rules once more for each hue. A page (or a dialog, or one card) says hue="mint" and everything inside
+# follows: no widget needs to know which page it is on.
+_HUE_QSS = """
+QToolButton#nav[hue="@"]:checked { background: %(@_fill)s; color: %(@_ink)s; }
+QWidget[hue="@"] QPushButton[accent="true"] { background: %(@_strong)s; border-color: %(@_strong)s; }
+QWidget[hue="@"] QPushButton[accent="true"]:hover { background: %(@_hover)s; border-color: %(@_hover)s; }
+QWidget[hue="@"] QPushButton[accent="true"]:disabled { background: %(raised)s; border-color: %(raised)s; }
+QWidget[hue="@"] QLineEdit, QWidget[hue="@"] QPlainTextEdit, QWidget[hue="@"] QTextEdit, QWidget[hue="@"] QSpinBox,
+QWidget[hue="@"] QDoubleSpinBox { selection-background-color: %(@_strong)s; }
+QWidget[hue="@"] QLineEdit:focus, QWidget[hue="@"] QPlainTextEdit:focus, QWidget[hue="@"] QSpinBox:focus,
+QWidget[hue="@"] QDoubleSpinBox:focus, QWidget[hue="@"] QComboBox:focus { border-color: %(@_line)s; }
+QWidget[hue="@"] QComboBox QAbstractItemView { selection-background-color: %(@_fill)s; }
+QWidget[hue="@"] QMenu::item:selected { background: %(@_fill)s; }
+QWidget[hue="@"] QTabBar::tab:selected { background: %(@_fill)s; color: %(@_ink)s; }
+QWidget[hue="@"] QTreeView::item:selected, QWidget[hue="@"] QListWidget::item:selected,
+QWidget[hue="@"] QTableView::item:selected { background: %(@_fill)s; }
+QWidget[hue="@"] QProgressBar::chunk { background: %(@_strong)s; }
+QWidget[hue="@"] QCheckBox::indicator:hover, QWidget[hue="@"] QRadioButton::indicator:hover { border-color: %(@_line)s; }
+QWidget[hue="@"] QCheckBox::indicator:checked, QWidget[hue="@"] QListView::indicator:checked { background: %(@_strong)s;
+    border-color: %(@_line)s; }
+QWidget[hue="@"] QRadioButton::indicator:checked { background: %(@_line)s; }
+QWidget[hue="@"] QSlider::sub-page:horizontal { background: %(@_line)s; }
+"""
+# A button can also carry a hue of its own (the Tools cards). These come last, so they win over the page's hue.
+_OWN_HUE_QSS = """
+QWidget QPushButton[accent="true"][hue="@"] { background: %(@_strong)s; border-color: %(@_strong)s; }
+QWidget QPushButton[accent="true"][hue="@"]:hover { background: %(@_hover)s; border-color: %(@_hover)s; }
+"""
+QSS += "".join(_HUE_QSS.replace("@", h) for h in HUES) + "".join(_OWN_HUE_QSS.replace("@", h) for h in HUES)
+
+
+# ---- type ----------------------------------------------------------------------------------------
+# Nunito for everything you read, Fredoka for names and titles. Both ship in assets/ (SIL Open Font License).
+# If a file is missing or the system refuses it, the system's own typeface is used and nothing else changes.
+_FONT_FILES = (("body", ("Nunito-Regular.ttf", "Nunito-Bold.ttf")), ("display", ("Fredoka-Medium.ttf",)))
+_FONT_QSS = """
+QLabel[role="title"], QLabel[role="heading"], QLabel[role="wordmark"] { font-family: "%(display)s"; font-weight: %(weight)s; }
+QLabel[role="wordmark"] { font-size: 19pt; }
+"""
+
+
+def load_fonts(app: QtWidgets.QApplication) -> None:
+    for role, files in _FONT_FILES:
+        for f in files:
+            try:
+                fid = QtGui.QFontDatabase.addApplicationFont(str(ASSETS / f)) if (ASSETS / f).is_file() else -1
+                fams = QtGui.QFontDatabase.applicationFontFamilies(fid) if fid >= 0 else []
+            except Exception:  # noqa: BLE001
+                fams = []
+            if fams and not FONTS[role]:
+                FONTS[role] = fams[0]
+    if FONTS["body"]:
+        f = QtGui.QFont(FONTS["body"])
+        f.setPointSize(10)
+        app.setFont(f)
+
+
+def display_font(points: float) -> QtGui.QFont:
+    """The title typeface, for text that is painted by hand or set as rich text."""
+    f = QtGui.QFont(FONTS["display"] or QtWidgets.QApplication.font().family())
+    f.setPointSizeF(points)
+    f.setWeight(QtGui.QFont.Weight.Medium if FONTS["display"] else QtGui.QFont.Weight.Bold)
+    return f
+
+
+def display_css() -> str:
+    """The same, as CSS for rich text."""
+    if FONTS["display"]:
+        return f"font-family:'{FONTS['display']}'; font-weight:500;"
+    return "font-weight:700;"
 
 
 def apply_theme(app: QtWidgets.QApplication, choice: str) -> str:
@@ -155,15 +283,17 @@ def apply_theme(app: QtWidgets.QApplication, choice: str) -> str:
     pal = QtGui.QPalette()
     R = QtGui.QPalette.ColorRole
     for role, key in ((R.Window, "bg"), (R.WindowText, "text"), (R.Base, "field"), (R.AlternateBase, "panel"),
-                      (R.Text, "text"), (R.Button, "raised"), (R.ButtonText, "text"), (R.Highlight, "accent"),
-                      (R.HighlightedText, "accent_text"), (R.ToolTipBase, "raised"), (R.ToolTipText, "text"),
-                      (R.PlaceholderText, "muted"), (R.Link, "accent")):
+                      (R.Text, "text"), (R.Button, "panel"), (R.ButtonText, "text"), (R.Highlight, "accent"),
+                      (R.HighlightedText, "accent_text"), (R.ToolTipBase, "panel"), (R.ToolTipText, "text"),
+                      (R.PlaceholderText, "muted"), (R.Link, "link")):
         pal.setColor(role, QtGui.QColor(C[key]))
     pal.setColor(QtGui.QPalette.ColorGroup.Disabled, R.Text, QtGui.QColor(C["muted"]))
     pal.setColor(QtGui.QPalette.ColorGroup.Disabled, R.ButtonText, QtGui.QColor(C["muted"]))
     app.setPalette(pal)
     _ICONS.clear()
-    app.setStyleSheet(QSS % {**C, **_control_images(name)})
+    _TILES.clear()
+    fonts = _FONT_QSS % {"display": FONTS["display"] or app.font().family(), "weight": 500 if FONTS["display"] else 700}
+    app.setStyleSheet(QSS % {**C, **_control_images(name)} + fonts)
     return name
 
 
@@ -216,6 +346,17 @@ _PATHS = {
     "mute": '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9l5 6"/><path d="M21 9l-5 6"/>',
     "key": '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/>',
     "image": '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.500"/><path d="M4 18l5-5 4 4 3-3 4 4"/>',
+    "tag": '<path d="M3 11V4h7l11 11-7 7z"/><circle cx="7.500" cy="8.500" r="1.200"/>',
+    "trash": '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>',
+    "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.500 2"/>',
+    "shield": '<path d="M12 3l8 3v6c0 4.500-3.200 7.800-8 9-4.800-1.200-8-4.500-8-9V6z"/>',
+    "screen": '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/>',
+    "pencil": '<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>',
+    "hash": '<path d="M9.500 4L7.500 20"/><path d="M16.500 4l-2 16"/><path d="M4.500 9h16"/><path d="M3.500 15h16"/>',
+    "sparkle": '<path d="M11 3l1.900 5.100L18 10l-5.100 1.900L11 17l-1.900-5.100L4 10l5.100-1.900z"/>'
+               '<path d="M18.500 15.500l.8 2.200 2.200.8-2.200.8-.8 2.200-.8-2.200-2.200-.8 2.200-.8z"/>',
+    "addon": '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.500v7"/><path d="M8.500 12h7"/>',
+    "import": '<path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 14v6h16v-6"/>',
 }
 _ICONS: dict = {}
 
@@ -244,6 +385,75 @@ def app_icon() -> QtGui.QIcon:
         if p.is_file():
             ic.addFile(str(p))
     return ic
+
+
+_TILES: dict = {}
+
+
+def tile(name: str, hue_name: str = "lilac", size: int = 28, on: bool = False, round_: float = 0.36) -> QtGui.QPixmap:
+    """An icon on a rounded pastel square: the sign of a page, a tool, an empty list. `on` is the stronger
+    version, for the page that is open."""
+    key = (name, hue_name, size, on, round_)
+    if key not in _TILES:
+        pm = QtGui.QPixmap(size * 2, size * 2)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QtGui.QPainter(pm)
+        p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QtGui.QColor(hue(hue_name, "strong" if on else "fill")))
+        p.drawRoundedRect(QtCore.QRectF(0, 0, size * 2, size * 2), size * 2 * round_, size * 2 * round_)
+        inner = int(size * 2 * 0.58)
+        off = (size * 2 - inner) // 2
+        ink = C["accent_text"] if on else hue(hue_name, "ink")
+        p.drawPixmap(QtCore.QRect(off, off, inner, inner), icon(name, ink, inner).pixmap(inner, inner))
+        p.end()
+        pm.setDevicePixelRatio(2.0)
+        _TILES[key] = pm
+    return _TILES[key]
+
+
+def nav_icon(name: str, hue_name: str, size: int = 28) -> QtGui.QIcon:
+    """The sidebar's icon for a page: a soft tile, and a stronger one while the page is open."""
+    ic = QtGui.QIcon()
+    for mode in (QtGui.QIcon.Mode.Normal, QtGui.QIcon.Mode.Active, QtGui.QIcon.Mode.Selected):
+        ic.addPixmap(tile(name, hue_name, size), mode, QtGui.QIcon.State.Off)
+        ic.addPixmap(tile(name, hue_name, size, on=True), mode, QtGui.QIcon.State.On)
+    return ic
+
+
+def tile_label(name: str, hue_name: str, size: int = 40) -> QtWidgets.QLabel:
+    lb = QtWidgets.QLabel()
+    lb.setFixedSize(size, size)
+    lb.setProperty("tile", f"{name}|{hue_name}|{size}")
+    lb.setPixmap(tile(name, hue_name, size))
+    return lb
+
+
+def page_head(page: str, ico: str, title: str, intro: str = "") -> QtWidgets.QHBoxLayout:
+    """The top of a page: its sign in its own colour, its name, and one line about what it is for."""
+    text = vbox(label(title, role="title"), spacing=1)
+    if intro:
+        text.addWidget(label(intro, muted=True, wrap=True))
+    lay = hbox(tile_label(ico, PAGE_HUE.get(page, page), 44), (text, 1), spacing=14)
+    lay.setAlignment(lay.itemAt(0).widget(), Qt.AlignmentFlag.AlignTop)
+    return lay
+
+
+_TAG_HUE = {"artists": "rose", "copyrights": "orchid", "characters": "mint", "species": "peach", "metas": "butter",
+            "models": "sky", "circles": "aqua"}
+
+
+def tag_color(typ: str, st) -> str:
+    """The colour of a kind of tag. The colours Packrat starts with become the matching pastel (artists rose,
+    series orchid, characters mint ...); a colour you picked yourself in Settings is used exactly as it is."""
+    from .. import uikit
+    from ..grab.settings import TAG_COLORS
+    key = uikit.TYPE_TO_COLOR_KEY.get(typ or "general", "generals")
+    colors = st.get("Coloring") or {}
+    mine = str(colors.get(key) or "").lower() if isinstance(colors, dict) else ""
+    if key in _TAG_HUE and mine in ("", dict(TAG_COLORS).get(key, "")):
+        return C[_TAG_HUE[key] + "_ink"]
+    return uikit.tag_color(typ, st, DARK[0])
 
 
 # ---- background work ------------------------------------------------------------------------------
@@ -466,6 +676,13 @@ def refresh_icons(root: QtWidgets.QWidget) -> None:
         name = b.property("ico")
         if name:
             b.setIcon(icon(name, C["accent_text"] if b.property("accent") else None))
+    for lb in root.findChildren(QtWidgets.QLabel):
+        spec = lb.property("tile")
+        if spec:
+            name, hue_name, size = str(spec).split("|")
+            lb.setPixmap(tile(name, hue_name, int(size)))
+        elif isinstance(lb, Empty):
+            lb.retheme()
 
 
 def hbox(*items, margins=(0, 0, 0, 0), spacing: int = 8) -> QtWidgets.QHBoxLayout:
@@ -488,6 +705,104 @@ def _fill(lay, items, margins, spacing):
             lay.addLayout(it)
         elif isinstance(it, tuple):
             (lay.addLayout if isinstance(it[0], QtWidgets.QLayout) else lay.addWidget)(it[0], it[1])
+        else:
+            lay.addWidget(it)
+    return lay
+
+
+class Flow(QtWidgets.QLayout):
+    """A row of buttons that goes on to a second line when the window is too narrow for it, instead of cutting the
+    buttons off. addStretch() marks a gap: what is added after it sits at the right end of its line."""
+
+    def __init__(self, spacing: int = 6):
+        super().__init__()
+        self._items: list = []
+        self._gap: int | None = None
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setSpacing(spacing)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def addStretch(self, _factor: int = 1):
+        if self._gap is None:
+            self._gap = len(self._items)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, i):
+        return self._items[i] if 0 <= i < len(self._items) else None
+
+    def takeAt(self, i):
+        if not 0 <= i < len(self._items):
+            return None
+        if self._gap is not None and i < self._gap:
+            self._gap -= 1
+        return self._items.pop(i)
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._place(QtCore.QRect(0, 0, width, 0), False)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._place(rect, True)
+
+    def sizeHint(self):          # everything on one line
+        shown = [it.sizeHint() for it in self._items if not it.isEmpty()]
+        m = self.contentsMargins()
+        return QtCore.QSize(sum(s.width() for s in shown) + self.spacing() * max(0, len(shown) - 1) + m.left() + m.right(),
+                            max((s.height() for s in shown), default=0) + m.top() + m.bottom())
+
+    def minimumSize(self):       # the widest single button
+        shown = [it.sizeHint() for it in self._items if not it.isEmpty()]
+        m = self.contentsMargins()
+        return QtCore.QSize(max((s.width() for s in shown), default=0) + m.left() + m.right(),
+                            max((s.height() for s in shown), default=0) + m.top() + m.bottom())
+
+    def _place(self, rect, move: bool) -> int:
+        m, sp = self.contentsMargins(), self.spacing()
+        width = rect.width() - m.left() - m.right()
+        lines, cur, used = [], [], 0
+        for i, it in enumerate(self._items):
+            if it.isEmpty():         # a hidden button takes no room
+                continue
+            w = min(it.sizeHint().width(), max(width, 1))
+            if cur and used + sp + w > width:
+                lines.append(cur)
+                cur, used = [], 0
+            used += (sp if cur else 0) + w
+            cur.append((i, it, w))
+        if cur:
+            lines.append(cur)
+        y = rect.y() + m.top()
+        for line in lines:
+            h = max(it.sizeHint().height() for _i, it, _w in line)
+            free = max(0, width - sum(w for _i, _it, w in line) - sp * (len(line) - 1))
+            x = rect.x() + m.left()
+            for i, it, w in line:
+                if free and self._gap is not None and i >= self._gap:
+                    x, free = x + free, 0
+                if move:
+                    ih = it.sizeHint().height()
+                    it.setGeometry(QtCore.QRect(x, y + (h - ih) // 2, w, ih))
+                x += w + sp
+            y += h + sp
+        return y - (sp if lines else 0) - rect.y() + m.bottom()
+
+
+def flow(*items, spacing: int = 6) -> Flow:
+    """Like hbox, for a row of buttons that may wrap. None is the gap (see Flow)."""
+    lay = Flow(spacing)
+    for it in items:
+        if it is None:
+            lay.addStretch()
         else:
             lay.addWidget(it)
     return lay
@@ -559,18 +874,45 @@ class SortItem(QtWidgets.QTreeWidgetItem):
         return self.text(col).lower() < other.text(col).lower()
 
 
-def empty_state(title: str, text: str = "") -> QtWidgets.QLabel:
-    lb = QtWidgets.QLabel()
-    lb.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    lb.setWordWrap(True)
-    lb.setTextFormat(Qt.TextFormat.RichText)
-    lb.setOpenExternalLinks(False)
+class Empty(QtWidgets.QLabel):
+    """What a page shows while there is nothing in it: its sign, a few words, and what to do next."""
+
+    def __init__(self, ico: str = "", hue_name: str = "lilac"):
+        super().__init__()
+        self.ico, self.hue_name = ico, hue_name
+        self.parts = ("", "")
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setWordWrap(True)
+        self.setTextFormat(Qt.TextFormat.RichText)
+        self.setOpenExternalLinks(False)
+
+    def retheme(self) -> None:
+        set_empty(self, *self.parts)
+
+    def _picture(self) -> str:
+        if not self.ico:
+            return ""
+        p = paths.cache_dir("ui") / f"empty-{self.ico}-{self.hue_name}-{'dark' if DARK[0] else 'light'}.png"
+        try:
+            tile(self.ico, self.hue_name, 72, round_=0.5).save(str(p), "PNG")
+        except Exception:  # noqa: BLE001 - no picture then
+            return ""
+        src = str(p).replace("\\", "/")
+        return f'<div style="margin-bottom:14px;"><img src="{src}" width="72" height="72"></div>'
+
+
+def empty_state(title: str, text: str = "", ico: str = "", hue: str = "lilac") -> Empty:
+    lb = Empty(ico, PAGE_HUE.get(hue, hue))
     set_empty(lb, title, text)
     return lb
 
 
 def set_empty(lb: QtWidgets.QLabel, title: str, text: str = "") -> None:
-    lb.setText(f'<div style="font-size:15pt; font-weight:600;">{title}</div>'
+    pic = ""
+    if isinstance(lb, Empty):
+        lb.parts = (title, text)
+        pic = lb._picture()
+    lb.setText(f'{pic}<div style="font-size:17pt; {display_css()}">{title}</div>'
                f'<div style="color:{C["muted"]}; line-height:150%; margin-top:10px;">{text}</div>')
 
 
