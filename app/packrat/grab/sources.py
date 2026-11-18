@@ -26,6 +26,8 @@ from urllib.parse import quote, urlsplit
 
 import requests
 from requests.adapters import HTTPAdapter
+from urllib3.exceptions import LocationParseError
+from urllib3.util import parse_url
 
 from .. import __version__, paths
 from . import qtini, secrets
@@ -337,10 +339,27 @@ class Site:
 
     def owns_url(self, url: str) -> bool:
         """The address is on this site or one of its subdomains (static1.e621.net for e621.net, cdn.donmai.us for
-        danbooru.donmai.us). Login headers go only there, never to a file host elsewhere."""
-        host = (urlsplit(url).hostname or "").lower()
+        danbooru.donmai.us). Login headers go only there, never to a file host elsewhere.
+
+        The host is the one requests will connect to (urllib3's reading of the address). Python's urlsplit reads
+        some addresses differently ("https://evil.com\\@e621.net/" is e621.net to urlsplit, evil.com to urllib3),
+        so an address the two disagree on, one with a backslash, or one with a scheme but no host never gets the
+        login. A bare path ("/posts.json") is on this site."""
+        url = str(url).strip()
+        if "\\" in url:
+            return False
+        try:
+            sp = urlsplit(url)
+            conn = (parse_url(url).host or "").lower().strip("[]")
+        except (ValueError, LocationParseError):
+            return False
+        if not sp.scheme and not sp.netloc:
+            return url.startswith("/") or not url
+        host = (sp.hostname or "").lower()
+        if not host or host != conn:
+            return False
         mine = self.host.split("/")[0].split(":")[0].lower()
-        if not host or host == mine:
+        if host == mine:
             return True
         if mine.replace(".", "").isdigit():
             return False
