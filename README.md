@@ -64,7 +64,7 @@ Both links always point at the newest version. Older ones are under [Releases](.
 - Your API key is never written into saved files, logs, file names or copied addresses.
 - Commands you set to run after saving (Settings > Commands) can't be hijacked by tag names from a site.
 
-What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.4.0** (a new pastel look: every page has its own colour).
+What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.4.1** (logins stay on their own site, even for oddly written addresses).
 
 ## Not there yet
 

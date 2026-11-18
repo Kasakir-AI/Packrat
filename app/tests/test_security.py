@@ -86,6 +86,31 @@ def test_login_headers_stay_on_the_site():
     assert not own("e621.net", "https://e621.net.evil.example/a.png")
     assert not own("booru.example.co.uk", "https://other.co.uk/a.png")
     assert own("booru.example.co.uk", "https://img.example.co.uk/a.png")
+    # Addresses Python's urlsplit and requests/urllib3 read differently: requests would connect to evil.com.
+    assert not own("danbooru.donmai.us", "https://evil.com\\@danbooru.donmai.us/")
+    assert not own("danbooru.donmai.us", "https://evil.com\\danbooru.donmai.us")
+    assert not own("e621.net", "http://evil.com\\@")
+    assert not own("e621.net", "https:///evil.com/x")
+    assert not own("e621.net", "https://")
+
+
+def test_login_header_does_not_leave_for_a_misread_address(monkeypatch):
+    sent = {}
+
+    class Session:
+        def request(self, method, url, headers=None, **kw):
+            sent["url"], sent["headers"] = url, dict(headers or {})
+            return SimpleNamespace(status_code=200, headers={}, close=lambda: None)
+
+    site = SimpleNamespace(host="e621.net", fix_url=lambda u: u, headers=dict, session=Session,
+                           _throttle=SimpleNamespace(wait=lambda *a: None), throttle=lambda k: 0,
+                           _active_auth=lambda: None, consecutive_403=0,
+                           _apply_auth_headers=lambda h: h.update(Authorization="Basic SECRET"))
+    site.owns_url = lambda u: Site.owns_url(site, u)
+    Site.request(site, "http://127.0.0.1:9\\@")
+    assert "Authorization" not in sent["headers"]
+    Site.request(site, "https://e621.net/posts.json")
+    assert sent["headers"]["Authorization"] == "Basic SECRET"
 
 
 def test_page_url_never_carries_the_login():

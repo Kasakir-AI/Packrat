@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.4.1 (2026-11-18) - logins stay on their own site
+
+### Security
+- **A site's login is never sent to another server, however the address is written.** Packrat adds your API key,
+  password or token only to requests for the site itself (and its own file servers). Some oddly written addresses,
+  for example with a backslash (`https://other.example\@e621.net/`), were read as the site by one part of Packrat and
+  as the other server by the part that connects, so the login could go along to that other server. Packrat now
+  decides on the server it will really connect to, and an address with a backslash, or a web address without a
+  server name, never gets the login. Normal addresses work exactly as before.
+
 ## 3.4.0 (2026-11-13) - a new look: pastels, one colour per page
 
 Nothing moved and nothing works differently; every button, menu and shortcut is where it was.
