@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased - logins stay on their own site, this time everywhere
+
+### Security
+- **A login written into the address stays on the site too.** Sites that take your login as part of the address
+  (`?login=..&api_key=..`, for example Danbooru) got it added to every address a source asked for, even one on
+  another server. 3.4.1 only guarded logins sent alongside the request. Now both kinds go only to the site itself.
+- **Shared hosting neighbours are strangers.** A site on a shared hosting name (`booru.github.io`,
+  `x.herokuapp.com`, `x.ngrok-free.app` ...) shares its login only with its own name and its subdomains, never with
+  `other.github.io`.
+
+### Fixed
+- **Searches with a backslash keep their login.** 3.4.1 left the login off any address with a backslash anywhere,
+  so Szurubooru searches like `a\:b` went out logged out. Packrat now reads the address exactly as it will be sent,
+  so only a backslash that could change the server matters.
+
 ## 3.4.1 (2026-11-18) - logins stay on their own site
 
 ### Security

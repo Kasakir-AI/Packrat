@@ -26,7 +26,6 @@ from urllib.parse import quote, urlsplit
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.exceptions import LocationParseError
 from urllib3.util import parse_url
 
 from .. import __version__, paths
@@ -40,6 +39,16 @@ API_ORDER_NAMES = {"json": "JSON", "xml": "XML", "html": "Regex", "regex": "Rege
 E621_FAMILY = ("e621.net", "e926.net", "e6ai.net")
 BROWSER_UA_MARKERS = ("mozilla", "chrome", "safari", "applewebkit", "gecko/", "edg/", "opera")
 DEFAULT_THROTTLE = {"page": 1.0, "details": 1.0, "image": 1.0, "thumbnail": 0.0, "retry": 60.0}
+# Shared hosting: every customer gets a name under these, so x.github.io and evil.github.io are different
+# owners. A site on one of them shares its login only with its own name and that name's subdomains.
+SHARED_HOST_SUFFIXES = (
+    "github.io", "gitlab.io", "codeberg.page", "pages.dev", "workers.dev", "r2.dev", "netlify.app", "vercel.app",
+    "web.app", "firebaseapp.com", "appspot.com", "herokuapp.com", "onrender.com", "fly.dev", "railway.app",
+    "glitch.me", "replit.app", "repl.co", "azurewebsites.net", "cloudfront.net", "amazonaws.com",
+    "blogspot.com", "wordpress.com", "tumblr.com", "neocities.org", "ngrok.io", "ngrok.app", "ngrok-free.app",
+    "trycloudflare.com", "loca.lt", "duckdns.org", "no-ip.org", "ddns.net", "dynv6.net", "freemyip.com",
+    "ts.net",
+)
 RETRY_STATUSES = {408, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524}
 SECRET_FIELDS = ("password", "apiKey", "consumerSecret", "accessToken", "refreshToken", "salt",
                  "accessTokenSecret")
@@ -343,19 +352,30 @@ class Site:
 
         The host is the one requests will connect to (urllib3's reading of the address). Python's urlsplit reads
         some addresses differently ("https://evil.com\\@e621.net/" is e621.net to urlsplit, evil.com to urllib3),
-        so an address the two disagree on, one with a backslash, or one with a scheme but no host never gets the
-        login. A bare path ("/posts.json") is on this site."""
+        so the address is first rewritten exactly as requests will send it ("https://evil.com/%5C@e621.net/"),
+        and the host is read from that. A backslash later in the address (Szurubooru's "query=a\\:b") is
+        harmless. An address that isn't http(s), has no host, or that the two parsers still disagree on never
+        gets the login. A bare path ("/posts.json") is on this site.
+
+        Shared hosting (SHARED_HOST_SUFFIXES): a site at booru.github.io owns only booru.github.io and its
+        subdomains, never evil.github.io."""
         url = str(url).strip()
-        if "\\" in url:
-            return False
         try:
             sp = urlsplit(url)
-            conn = (parse_url(url).host or "").lower().strip("[]")
-        except (ValueError, LocationParseError):
+        except ValueError:
             return False
         if not sp.scheme and not sp.netloc:
             return url.startswith("/") or not url
-        host = (sp.hostname or "").lower()
+        if sp.scheme.lower() not in ("http", "https"):
+            return False
+        try:
+            prep = requests.models.PreparedRequest()
+            prep.prepare_url(url, None)
+            sent = prep.url
+            host = (urlsplit(sent).hostname or "").lower()
+            conn = (parse_url(sent).host or "").lower().strip("[]")
+        except (ValueError, requests.RequestException):
+            return False
         if not host or host != conn:
             return False
         mine = self.host.split("/")[0].split(":")[0].lower()
@@ -364,14 +384,23 @@ class Site:
         if mine.replace(".", "").isdigit():
             return False
         labels = mine.split(".")
-        keep = 3 if len(labels) >= 3 and len(labels[-1]) == 2 and len(labels[-2]) <= 3 else 2   # x.co.uk, x.com.au
+        shared = max((x for x in SHARED_HOST_SUFFIXES if mine == x or mine.endswith("." + x)), key=len, default="")
+        if shared == mine:
+            return False                       # the shared host itself: its own name only (checked above)
+        if shared:
+            keep = shared.count(".") + 2       # booru.github.io -> booru.github.io; a.booru.github.io -> the same
+        else:
+            keep = 3 if len(labels) >= 3 and len(labels[-1]) == 2 and len(labels[-2]) <= 3 else 2  # x.co.uk
         base = ".".join(labels[-keep:])
         return host == base or host.endswith("." + base)
 
     def fix_login_url(self, url: str) -> str:
-        """Grabber UrlLogin::complementUrl: add the URL auth fields (login=..&api_key=..)."""
+        """Grabber UrlLogin::complementUrl: add the URL auth fields (login=..&api_key=..), but only to an address
+        on this site (owns_url). An address on another server goes out without them."""
         auth = self._active_auth()
         if not auth or auth.get("type") != "url" or not url:
+            return url
+        if not self.owns_url(self.fix_url(url)):
             return url
         has_q = "?" in url
         parts = []

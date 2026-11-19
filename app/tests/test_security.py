@@ -113,6 +113,81 @@ def test_login_header_does_not_leave_for_a_misread_address(monkeypatch):
     assert sent["headers"]["Authorization"] == "Basic SECRET"
 
 
+def test_backslash_later_in_the_address_keeps_the_login(monkeypatch):
+    """Szurubooru escapes with a backslash in its search ("a\\:b"): that search is on the site and keeps its login.
+    A backslash before the host still never sends it (see test_login_headers_stay_on_the_site)."""
+    own = lambda host, url: Site.owns_url(SimpleNamespace(host=host), url)  # noqa: E731
+    assert own("szuru.example", "https://szuru.example/api/posts/?query=a\\:b")
+    assert own("szuru.example", "https://szuru.example/api/posts/?query=tag\\ name&offset=0")
+    assert own("e621.net", "https://e621.net/posts/a\\b.json")
+    assert not own("e621.net", "ftp://e621.net/x")
+    sent = {}
+
+    class Session:
+        def request(self, method, url, headers=None, **kw):
+            sent["headers"] = dict(headers or {})
+            return SimpleNamespace(status_code=200, headers={}, close=lambda: None)
+
+    site = SimpleNamespace(host="szuru.example", fix_url=lambda u: u, headers=dict, session=Session,
+                           _throttle=SimpleNamespace(wait=lambda *a: None), throttle=lambda k: 0,
+                           _active_auth=lambda: None, consecutive_403=0,
+                           _apply_auth_headers=lambda h: h.update(Authorization="Basic SECRET"))
+    site.owns_url = lambda u: Site.owns_url(site, u)
+    Site.request(site, "https://szuru.example/api/posts/?query=a\\:b")
+    assert sent["headers"].get("Authorization") == "Basic SECRET"
+
+
+def test_shared_hosting_neighbours_are_strangers():
+    """On shared hosting (github.io, herokuapp.com ...) every customer has its own name: a site there shares its
+    login with its own name and subdomains only."""
+    own = lambda host, url: Site.owns_url(SimpleNamespace(host=host), url)  # noqa: E731
+    assert own("booru.github.io", "https://booru.github.io/posts.json")
+    assert own("booru.github.io", "https://img.booru.github.io/a.png")
+    assert own("a.booru.github.io", "https://b.booru.github.io/a.png")
+    assert not own("booru.github.io", "https://evil.github.io/x")
+    assert not own("booru.github.io", "https://github.io/x")
+    assert not own("mybooru.herokuapp.com", "https://evil.herokuapp.com/x")
+    assert not own("pics.ngrok-free.app", "https://evil.ngrok-free.app/x")
+    assert not own("github.io", "https://evil.github.io/x")
+    # ordinary sites keep their file hosts
+    assert own("danbooru.donmai.us", "https://cdn.donmai.us/original/a.jpg")
+
+
+class _UrlLoginSite(Site):
+    """A real Site whose login goes in the address (Danbooru-style login=..&api_key=..)."""
+    ssl = True
+
+    def __init__(self, host):                       # noqa: D107 (no store, no source: only the address code runs)
+        self.host = self.key = host
+        self.sent = []
+
+    def _active_auth(self):
+        return {"type": "url", "fields": [{"key": "login", "type": "const", "value": "me"},
+                                          {"key": "api_key", "id": "apiKey", "type": "const", "value": "SECRET"}]}
+
+    def get_text(self, url, kind, **kw):
+        self.sent.append(url)
+        return 200, "", ""
+
+    def referer(self, kind):
+        return None
+
+
+def test_login_in_the_address_stays_on_the_site():
+    site = _UrlLoginSite("danbooru.donmai.us")
+    for obj in ("https://evil.example/post/1", {"url": "https://evil.example/post/1"},
+                "https://evil.com\\@danbooru.donmai.us/", "//evil.example/x"):
+        site.sent.clear()
+        site._do_url_object(obj, "details")
+        assert site.sent and "SECRET" not in site.sent[0] and "login=me" not in site.sent[0], obj
+    for obj, start in (("/posts.json?tags=cat", "https://danbooru.donmai.us/posts.json?tags=cat&"),
+                       ("https://danbooru.donmai.us/posts/1.json", "https://danbooru.donmai.us/posts/1.json?"),
+                       ({"url": "https://cdn.donmai.us/x.json"}, "https://cdn.donmai.us/x.json?")):
+        site.sent.clear()
+        site._do_url_object(obj, "page")
+        assert site.sent[0] == start + "login=me&api_key=SECRET", obj
+
+
 def test_page_url_never_carries_the_login():
     from packrat.grab.image import Image
     site = SimpleNamespace(fix_url=lambda u: u, fix_login_url=lambda u: u + "?login=me&api_key=SECRET",
