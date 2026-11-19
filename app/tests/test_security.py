@@ -153,6 +153,40 @@ def test_shared_hosting_neighbours_are_strangers():
     assert own("danbooru.donmai.us", "https://cdn.donmai.us/original/a.jpg")
 
 
+def test_international_and_ipv6_sites_keep_their_login():
+    own = lambda host, url, ssl=True: Site.owns_url(SimpleNamespace(host=host, ssl=ssl), url)  # noqa: E731
+    assert own("bücher.de", "https://bücher.de/x")
+    assert own("bücher.de", "https://xn--bcher-kva.de/x")
+    assert own("xn--bcher-kva.de", "https://img.bücher.de/x")
+    assert own("e621.net", "https://E621%2Enet/x")              # requests connects to e621.net
+    assert not own("bücher.de", "https://bucher.de/x")
+    assert own("[::1]:8080", "http://[::1]:8080/posts", ssl=False)
+    assert own("[fe80::1%25eth0]:8080", "http://[fe80::1%25eth0]:8080/x", ssl=False)
+    assert not own("[::1]:8080", "http://[::2]:8080/posts", ssl=False)
+    assert not own("[::1]:8080", "http://[::1]:9090/posts", ssl=False)
+    assert not own("192.168.1.5", "https://192.168.1.6/x")
+
+
+def test_login_needs_the_sites_port_and_https():
+    own = lambda host, url, ssl=True: Site.owns_url(SimpleNamespace(host=host, ssl=ssl), url)  # noqa: E731
+    # https site: never over plain http, not even to its own file servers
+    assert not own("danbooru.donmai.us", "http://cdn.donmai.us/x.jpg")
+    assert not own("danbooru.donmai.us", "http://danbooru.donmai.us/posts.json")
+    assert own("danbooru.donmai.us", "https://danbooru.donmai.us:443/posts.json")
+    # another port on the same machine is another service
+    assert own("booru.example:8443", "https://booru.example:8443/posts")
+    assert not own("booru.example:8443", "https://booru.example:8080/posts")
+    assert not own("booru.example:8443", "https://booru.example/posts")
+    assert not own("e621.net", "https://e621.net:8080/posts.json")
+    assert not own("e621.net", "https://static1.e621.net:8080/a.png")
+    # a plain-http site keeps its login on http, and may also use https
+    assert own("booru.lan", "http://booru.lan/posts", ssl=False)
+    assert own("booru.lan", "https://booru.lan/posts", ssl=False)
+    assert not own("booru.lan", "http://booru.lan:8080/posts", ssl=False)
+    # a site in a folder ("www.newgrounds.com/art") is still that server
+    assert own("www.newgrounds.com/art", "https://art.newgrounds.com/x")
+
+
 class _UrlLoginSite(Site):
     """A real Site whose login goes in the address (Danbooru-style login=..&api_key=..)."""
     ssl = True

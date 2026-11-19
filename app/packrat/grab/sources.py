@@ -346,19 +346,41 @@ class Site:
             return "https://" + url[7:]
         return url
 
+    @staticmethod
+    def _as_sent(url: str) -> tuple[str, str, int] | None:
+        """(scheme, host, port) of the server requests will really connect to for this address, or None.
+        The address is rewritten exactly as requests sends it (international names become xn--, "e621%2Enet"
+        becomes e621.net, a backslash before the host becomes %5C in the path), then read by both Python's
+        urlsplit and urllib3: if they disagree, None."""
+        try:
+            prep = requests.models.PreparedRequest()
+            prep.prepare_url(url, None)
+            sp = urlsplit(prep.url)
+            scheme = sp.scheme.lower()
+            host = (sp.hostname or "").lower().replace("%25", "%")     # IPv6 zone: fe80::1%25eth0 is fe80::1%eth0
+            conn = (parse_url(prep.url).host or "").lower().strip("[]")
+            port = sp.port or {"https": 443, "http": 80}.get(scheme, 0)
+        except (ValueError, requests.RequestException):
+            return None
+        if scheme not in ("http", "https") or not host or host != conn:
+            return None
+        return scheme, host, port
+
     def owns_url(self, url: str) -> bool:
         """The address is on this site or one of its subdomains (static1.e621.net for e621.net, cdn.donmai.us for
         danbooru.donmai.us). Login headers go only there, never to a file host elsewhere.
 
-        The host is the one requests will connect to (urllib3's reading of the address). Python's urlsplit reads
-        some addresses differently ("https://evil.com\\@e621.net/" is e621.net to urlsplit, evil.com to urllib3),
-        so the address is first rewritten exactly as requests will send it ("https://evil.com/%5C@e621.net/"),
-        and the host is read from that. A backslash later in the address (Szurubooru's "query=a\\:b") is
-        harmless. An address that isn't http(s), has no host, or that the two parsers still disagree on never
+        Both the address and the site's own name are read as the server requests will connect to (_as_sent), so
+        "https://evil.com\\@e621.net/" is evil.com, bücher.de matches xn--bcher-kva.de, and a backslash later in
+        the address (Szurubooru's "query=a\\:b") is harmless. An address that isn't http(s) or has no host never
         gets the login. A bare path ("/posts.json") is on this site.
 
+        The port must be the site's: its own port if it has one ("booru.example:8443"), otherwise the usual one
+        (443, or 80 for plain http). A site that uses https never sends its login over plain http, not even to
+        its own file servers.
+
         Shared hosting (SHARED_HOST_SUFFIXES): a site at booru.github.io owns only booru.github.io and its
-        subdomains, never evil.github.io."""
+        subdomains, never evil.github.io. A site at an IP address owns only that address."""
         url = str(url).strip()
         try:
             sp = urlsplit(url)
@@ -366,22 +388,25 @@ class Site:
             return False
         if not sp.scheme and not sp.netloc:
             return url.startswith("/") or not url
-        if sp.scheme.lower() not in ("http", "https"):
+        to = Site._as_sent(url)
+        ssl = getattr(self, "ssl", True)
+        netloc = self.host.split("/")[0]
+        me = Site._as_sent(("https://" if ssl else "http://") + netloc)
+        if not to or not me:
+            return False
+        scheme, host, port = to
+        mine = me[1]
+        if ssl and scheme != "https":
             return False
         try:
-            prep = requests.models.PreparedRequest()
-            prep.prepare_url(url, None)
-            sent = prep.url
-            host = (urlsplit(sent).hostname or "").lower()
-            conn = (parse_url(sent).host or "").lower().strip("[]")
-        except (ValueError, requests.RequestException):
+            mine_port = urlsplit("//" + netloc).port
+        except ValueError:
             return False
-        if not host or host != conn:
+        if port != (mine_port or {"https": 443, "http": 80}[scheme]):
             return False
-        mine = self.host.split("/")[0].split(":")[0].lower()
         if host == mine:
             return True
-        if mine.replace(".", "").isdigit():
+        if ":" in mine or mine.replace(".", "").isdigit():
             return False
         labels = mine.split(".")
         shared = max((x for x in SHARED_HOST_SUFFIXES if mine == x or mine.endswith("." + x)), key=len, default="")

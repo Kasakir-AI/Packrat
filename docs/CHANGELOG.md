@@ -9,11 +9,18 @@
 - **Shared hosting neighbours are strangers.** A site on a shared hosting name (`booru.github.io`,
   `x.herokuapp.com`, `x.ngrok-free.app` ...) shares its login only with its own name and its subdomains, never with
   `other.github.io`.
+- **A login never goes over plain http when the site uses https,** not even to the site's own file servers (for
+  example `http://cdn.donmai.us`). It went unencrypted before.
+- **Another port is another service.** A site at `booru.example:8443` sends its login only to port 8443, not to
+  `booru.example:8080`. A site without a port uses the usual one (443, or 80 for plain http).
 
 ### Fixed
 - **Searches with a backslash keep their login.** 3.4.1 left the login off any address with a backslash anywhere,
   so Szurubooru searches like `a\:b` went out logged out. Packrat now reads the address exactly as it will be sent,
   so only a backslash that could change the server matters.
+- **Sites with accented or international names keep their login** (`bücher.de`, also written
+  `xn--bcher-kva.de`). 3.4.1 compared two spellings of the same name and never matched them.
+- **Self-hosted sites at an IPv6 address keep their login** (`[::1]:8080`). 3.4.1 misread the address.
 
 ## 3.4.1 (2026-11-18) - logins stay on their own site
 
