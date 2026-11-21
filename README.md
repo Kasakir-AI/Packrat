@@ -5,7 +5,7 @@ e6ai, yande.re, Konachan, rule34, Safebooru, Sankaku, Zerochan, Pixiv and many m
 Grabber's site sources, so any site Grabber supports works here too.
 It can also keep a complete, verified copy of e6ai or e621.
 
-Windows 10 / 11 and macOS 12 or newer (new in 3.2.1). Linux works from source.
+The Windows build supports Windows 10 and 11. The disk image requires an Apple Silicon Mac with macOS 14.4 or later. Linux works from source.
 
 ![Packrat's Browse page](docs/screenshots/packrat-qt-browse.png)
 
@@ -14,10 +14,10 @@ Windows 10 / 11 and macOS 12 or newer (new in 3.2.1). Linux works from source.
 | | Download | Then |
 | :- | :- | :- |
 | **Windows** | **[Packrat-windows.zip](../../releases/latest/download/Packrat-windows.zip)** | Unzip to `C:\`, double-click `Packrat.exe` |
-| **Mac** (M1 or newer) | **[Packrat-macOS.dmg](../../releases/latest/download/Packrat-macOS.dmg)** | Open it, drag Packrat into Applications |
+| **Mac** (Apple Silicon, macOS 14.4+) | **[Packrat-macOS.dmg](../../releases/latest/download/Packrat-macOS.dmg)** | Open it, drag Packrat into Applications |
 | Any computer with Python 3.11 - 3.14 | [Packrat-python.zip](../../releases/latest/download/Packrat-python.zip) | Unzip; Windows: `Start Packrat.bat`, Mac / Linux: `Start Packrat.command` |
 
-The Apple Silicon disk image is Developer ID signed and notarized by Apple. Intel Macs use
+The Apple Silicon disk image is Developer ID signed and notarized by Apple. Intel Macs can use
 Packrat-python.zip with [Python for macOS](https://www.python.org/downloads/macos/).
 
 Windows may show “Windows protected your PC.” Click **More info** and then **Run anyway**.
