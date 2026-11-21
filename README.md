@@ -22,6 +22,8 @@ Packrat-python.zip with [Python for macOS](https://www.python.org/downloads/maco
 
 Windows may show “Windows protected your PC.” Click **More info** and then **Run anyway**.
 
+On Apple Silicon you can also install with Homebrew, using `brew install --cask kasakir-ai/tap/packrat`.
+
 On a Mac, Packrat keeps its settings in `~/Library/Application Support/Packrat` and saves pictures to
 **Pictures > Packrat** (change it in Settings). Logins go in the Mac's Keychain.
 
@@ -85,7 +87,7 @@ python -m packrat gui
 
 Every push and every pull request is tested on GitHub's Windows and Mac machines: the start-up scripts, the tests, a
 self-test of the window, and the `Packrat.exe` / `Packrat.app` builds ([workflow](.github/workflows/windows.yml)).
-CI produces test artifacts. Maintainers publish the Windows and Python ZIPs alongside the signed and notarized Mac disk image.
+CI publishes the Windows and Python ZIPs. The Mac disk image is signed and notarized before it is uploaded to the same release.
 
 To build the Mac app yourself: `cd app && python -m pip install -e . pyinstaller && python -m PyInstaller packrat.spec`
 gives `app/dist/Packrat.app`.

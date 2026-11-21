@@ -30,7 +30,10 @@ else
     helper="$framework/Versions/Current/Helpers/QtWebEngineProcess.app"
     sign=(codesign --force --options runtime --timestamp --sign "$MACOS_SIGN_IDENTITY")
     "${sign[@]}" --entitlements "$helper/Contents/Resources/QtWebEngineProcess.entitlements" "$helper"
-    "${sign[@]}" "$framework" "$app"
+    while IFS= read -r -d '' framework; do
+        "${sign[@]}" "$framework"
+    done < <(find "$app/Contents/Frameworks" -depth -type d -name '*.framework' -print0)
+    "${sign[@]}" "$app"
     "$app/Contents/MacOS/packrat-cli" --version
     notarize_app "$app" "$scratch/notary.zip"
 fi

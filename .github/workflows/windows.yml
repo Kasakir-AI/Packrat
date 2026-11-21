@@ -58,6 +58,8 @@ jobs:
     name: Build Packrat.exe
     runs-on: windows-latest
     timeout-minutes: 45
+    permissions:
+      contents: write        # to attach the downloads to a release (main only)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -116,6 +118,27 @@ jobs:
         with:
           name: Packrat-python-zip
           path: out/zip
+      # On main: put both downloads on the Releases page, as "v<version>". The README links to
+      # releases/latest/download/..., so its download links always give the newest build.
+      - name: Publish the downloads as a release
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = (Select-String -Path app\packrat\__init__.py -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
+          7z a -tzip -mx=7 Packrat-windows.zip .\out\exe\Packrat | Select-Object -Last 3
+          Copy-Item out\zip\Packrat-python.zip Packrat-python.zip
+          gh release view "v$v" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "v$v" --title "Packrat $v" --target $env:GITHUB_SHA --latest --notes "What changed: see docs/CHANGELOG.md, section $v. Windows: Packrat-windows.zip (no Python needed). Mac (Apple Silicon): Packrat-macOS.dmg. Any system with Python 3.11+: Packrat-python.zip."
+            if ($LASTEXITCODE -ne 0) {
+              gh release view "v$v" *> $null      # the Mac job may have made it at the same moment
+              if ($LASTEXITCODE -ne 0) { exit 1 }
+            }
+          }
+          gh release upload "v$v" Packrat-windows.zip Packrat-python.zip --clobber
+          exit $LASTEXITCODE
 
   mac:
     name: Mac tests and Packrat.app
