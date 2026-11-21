@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.4.2 (2026-11-21)
+
+- The Apple Silicon disk image is signed with Developer ID and notarized by Apple.
+
 ## 3.4.1 (2026-11-18) - logins stay on their own site
 
 ### Security

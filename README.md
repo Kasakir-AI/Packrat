@@ -17,13 +17,10 @@ Windows 10 / 11 and macOS 12 or newer (new in 3.2.1). Linux works from source.
 | **Mac** (M1 or newer) | **[Packrat-macOS.dmg](../../releases/latest/download/Packrat-macOS.dmg)** | Open it, drag Packrat into Applications |
 | Any computer with Python 3.11 - 3.14 | [Packrat-python.zip](../../releases/latest/download/Packrat-python.zip) | Unzip; Windows: `Start Packrat.bat`, Mac / Linux: `Start Packrat.command` |
 
-Nothing else to install. The programs are not signed by Microsoft or Apple, so the first start shows a warning:
+The Apple Silicon disk image is Developer ID signed and notarized by Apple. Intel Macs use
+Packrat-python.zip with [Python for macOS](https://www.python.org/downloads/macos/).
 
-- **Windows** - "Windows protected your PC": click "More info" > "Run anyway".
-- **Mac** - "Apple could not verify Packrat": click **Done**, open **System Settings > Privacy & Security**, scroll
-  down to "Packrat was blocked" and click **Open Anyway**, then **Open Anyway** again. Only the first time.
-  An Intel Mac uses Packrat-python.zip (install Python from [python.org](https://www.python.org/downloads/macos/)
-  first).
+Windows may show “Windows protected your PC.” Click **More info** and then **Run anyway**.
 
 On a Mac, Packrat keeps its settings in `~/Library/Application Support/Packrat` and saves pictures to
 **Pictures > Packrat** (change it in Settings). Logins go in the Mac's Keychain.
@@ -64,14 +61,14 @@ Both links always point at the newest version. Older ones are under [Releases](.
 - Your API key is never written into saved files, logs, file names or copied addresses.
 - Commands you set to run after saving (Settings > Commands) can't be hijacked by tag names from a site.
 
-What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.4.1** (logins stay on their own site, even for oddly written addresses).
+What changed in each version: [Change log](docs/CHANGELOG.md). Latest: **3.4.2** (signed and notarized Apple Silicon disk image).
 
 ## Not there yet
 
 - English only. No auto-update. No custom themes.
 - Sites that need an account (Pixiv, Twitter/X) and the built-in login browser have not been tested with real
   accounts.
-- `Packrat.exe` and `Packrat.app` are not code-signed.
+- `Packrat.exe` is unsigned.
 - The Mac version is new: the tests and the window self-test pass on every change, but it has had less real use
   than the Windows one. Hourly monitor checks while Packrat is closed and desktop / Start menu shortcuts are
   Windows only. The .dmg is for Apple Silicon Macs (M1 and newer).
@@ -88,7 +85,7 @@ python -m packrat gui
 
 Every push and every pull request is tested on GitHub's Windows and Mac machines: the start-up scripts, the tests, a
 self-test of the window, and the `Packrat.exe` / `Packrat.app` builds ([workflow](.github/workflows/windows.yml)).
-A merge into `main` publishes the new version (Windows zip, Mac .dmg, Python zip) on the Releases page by itself.
+CI produces test artifacts. Maintainers publish the Windows and Python ZIPs alongside the signed and notarized Mac disk image.
 
 To build the Mac app yourself: `cd app && python -m pip install -e . pyinstaller && python -m PyInstaller packrat.spec`
 gives `app/dist/Packrat.app`.

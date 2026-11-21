@@ -28,9 +28,12 @@ if sys.platform == "darwin":
     Image.open(os.path.join(here, "packrat", "assets", "packrat.png")).save(icon)
 else:
     icon = os.path.join(here, "packrat", "assets", "packrat.ico")
+signing = {}
+if sys.platform == "darwin":
+    signing["codesign_identity"] = os.environ.get("MACOS_SIGN_IDENTITY") or None
 gui = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Packrat", console=False, icon=icon,
-          version=version_file if sys.platform == "win32" and os.path.exists(version_file) else None)
-cli = EXE(pyz, a.scripts, [], exclude_binaries=True, name="packrat-cli", console=True, icon=icon)
+          version=version_file if sys.platform == "win32" and os.path.exists(version_file) else None, **signing)
+cli = EXE(pyz, a.scripts, [], exclude_binaries=True, name="packrat-cli", console=True, icon=icon, **signing)
 coll = COLLECT(gui, cli, a.binaries, a.datas, name="Packrat")
 if sys.platform == "darwin":
     import re

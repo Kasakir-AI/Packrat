@@ -83,11 +83,7 @@ STEP 3 - Start
   1. Double-click Packrat-macOS.dmg. In the window that opens, drag
      Packrat onto the Applications folder.
   2. Open Packrat from Applications (or Launchpad / Spotlight).
-  3. The first time, the Mac says "Apple could not verify Packrat",
-     because the program is new and not signed by Apple. Click Done, then:
-     System Settings > Privacy & Security > scroll down to
-     "Packrat was blocked" > "Open Anyway" > "Open Anyway" again
-     (enter your Mac password if asked). Only needed once.
+  The disk image is signed with Developer ID and notarized by Apple.
 
   On a Mac, Packrat keeps its settings, favorites and lists in
   ~/Library/Application Support/Packrat (Finder > Go > Go to Folder...)
