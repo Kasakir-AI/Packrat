@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.4.3 (2026-11-21)
+
+- The Apple Silicon app now declares macOS 14.4 as its minimum, matching the bundled Qt libraries.
+
 ## 3.4.2 (2026-11-21)
 
 - The Apple Silicon disk image is signed with Developer ID and notarized by Apple.

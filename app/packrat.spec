@@ -40,7 +40,7 @@ if sys.platform == "darwin":
     ver = re.search(r'__version__ = "(.+)"', open(os.path.join(here, "packrat", "__init__.py")).read()).group(1)
     app = BUNDLE(coll, name="Packrat.app", icon=icon, bundle_identifier="ai.kasakir.packrat", version=ver,
                  info_plist={"CFBundleName": "Packrat", "CFBundleDisplayName": "Packrat", "CFBundleShortVersionString": ver,
-                             "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "12.0",
+                             "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "14.4",
                              # PyInstaller marks the bundle background-only because of packrat-cli (a console
                              # program): no Dock icon, no menu bar, and macOS never lets it take the keyboard
                              "LSBackgroundOnly": False, "LSUIElement": False,
