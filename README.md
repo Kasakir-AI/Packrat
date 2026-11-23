@@ -96,6 +96,15 @@ gives `app/dist/Packrat.app`.
 
 Packrat is free. If it helps you, you can [star the repo](https://github.com/Kasakir-AI/Packrat) or [sponsor on GitHub](https://github.com/sponsors/Kasakir-AI), once or monthly.
 
+### Sponsors
+
+<!-- sponsors:start -->
+<!-- This section is updated automatically. Edits here are overwritten. -->
+
+No sponsors featured here yet. [Become the first](https://github.com/sponsors/Kasakir-AI)!
+All sponsors: [SPONSORS.md](https://github.com/Kasakir-AI/.github/blob/main/SPONSORS.md).
+<!-- sponsors:end -->
+
 ## More
 
 - [Manual](docs/README.md) - [Site archive manual](docs/SITE-ARCHIVE.md) - [Change log](docs/CHANGELOG.md)
