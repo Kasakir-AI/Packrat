@@ -3,6 +3,7 @@ assistant that sets up the basics in plain language."""
 from __future__ import annotations
 
 import re
+import webbrowser
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import filedialog, ttk
@@ -12,6 +13,11 @@ from .uikit import PRESETS, format_label, sample_example  # noqa: F401
 from . import theme as th
 from . import ui_common as uc
 from .ui_common import COLORS
+
+KO_FI_URL = "https://ko-fi.com/kasakir"
+SUPPORT_LINKS = (("Buy me a coffee on Ko-fi", KO_FI_URL),
+                 ("Sponsor on GitHub", "https://github.com/sponsors/Kasakir-AI"),
+                 ("Star on GitHub", "https://github.com/Kasakir-AI/Packrat"))
 
 _INLINE = re.compile(r"(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))")
 
@@ -658,6 +664,13 @@ class AboutDialog(uc.Dialog):
         bf.pack(anchor="w", pady=(8, 0))
         ttk.Button(bf, text="Open your data folder", command=lambda: uc.open_path(str(paths.data_dir()))).pack(
             side="left")
+        ttk.Label(b, text="Support Packrat", font=app.f_bold).pack(anchor="w", pady=(14, 2))
+        ttk.Label(b, text="Packrat is free. If it helps you, you can support its development.",
+                  wraplength=uc.px(480), justify="left").pack(anchor="w")
+        sf = ttk.Frame(b)
+        sf.pack(anchor="w", pady=(6, 0))
+        for label, url in SUPPORT_LINKS:
+            ttk.Button(sf, text=label, command=lambda u=url: webbrowser.open(u)).pack(side="left", padx=(0, 6))
         ttk.Label(b, text="Credits", font=app.f_bold).pack(anchor="w", pady=(14, 2))
         ttk.Label(b, text="The site scripts (sources) and many ideas come from Grabber by Bionus "
                   "(Apache License 2.0, see sources\\GRABBER-LICENSE.txt). Packrat is not made by, or connected "

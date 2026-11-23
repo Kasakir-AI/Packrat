@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.4.4 (2026-11-22)
+
+- About Packrat has a Support section with links to Ko-fi, GitHub Sponsors, and the GitHub repository. The Help menu has **Support Packrat on Ko-fi...**.
+
 ## 3.4.3 (2026-11-21)
 
 - The Apple Silicon app now declares macOS 14.4 as its minimum, matching the bundled Qt libraries.

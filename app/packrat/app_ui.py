@@ -251,12 +251,19 @@ class PackratApp:
         m.add_command(label="What do simple and advanced change?", command=lambda: self.open_help("advanced"))
         m.add_separator()
         m.add_command(label="Open the Packrat folder", command=lambda: uc.open_path(str(paths.install_root())))
+        m.add_command(label="Support Packrat on Ko-fi...", command=self.support)
         m.add_command(label="About Packrat", command=self.about)
         b = self.help_btn
         try:
             m.tk_popup(b.winfo_rootx(), b.winfo_rooty() + b.winfo_height())
         finally:
             m.grab_release()
+
+    def support(self):
+        import webbrowser
+
+        from .ui_help import KO_FI_URL
+        webbrowser.open(KO_FI_URL)
 
     def about(self):
         from .ui_help import AboutDialog
