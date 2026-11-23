@@ -94,7 +94,7 @@ gives `app/dist/Packrat.app`.
 
 ## Support
 
-Packrat is free. If it helps you, you can [star the repo](https://github.com/Kasakir-AI/Packrat) or [sponsor on GitHub](https://github.com/sponsors/Kasakir-AI), once or monthly.
+Packrat is free. If it helps you, you can [star the repo](https://github.com/Kasakir-AI/Packrat), [buy me a coffee on Ko-fi](https://ko-fi.com/kasakir), or [sponsor on GitHub](https://github.com/sponsors/Kasakir-AI), once or monthly.
 
 ### Sponsors
 
