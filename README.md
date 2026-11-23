@@ -92,6 +92,10 @@ CI publishes the Windows and Python ZIPs. The Mac disk image is signed and notar
 To build the Mac app yourself: `cd app && python -m pip install -e . pyinstaller && python -m PyInstaller packrat.spec`
 gives `app/dist/Packrat.app`.
 
+## Support
+
+Packrat is free. If it helps you, you can [star the repo](https://github.com/Kasakir-AI/Packrat) or [sponsor on GitHub](https://github.com/sponsors/Kasakir-AI), once or monthly.
+
 ## More
 
 - [Manual](docs/README.md) - [Site archive manual](docs/SITE-ARCHIVE.md) - [Change log](docs/CHANGELOG.md)
