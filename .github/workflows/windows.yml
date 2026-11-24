@@ -19,8 +19,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Check Python (Windows PowerShell 5.1)
@@ -48,7 +48,7 @@ jobs:
           if (Test-Path smoke-venv\smoke.json) { Get-Content smoke-venv\smoke.json }
           if (Test-Path "$env:PACKRAT_HOME\data\logs\packrat-window.log") { Get-Content "$env:PACKRAT_HOME\data\logs\packrat-window.log" -Tail 40 }
           exit $p.ExitCode
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: screenshots-python
@@ -61,8 +61,8 @@ jobs:
     permissions:
       contents: write        # to attach the downloads to a release (main only)
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install
@@ -104,17 +104,17 @@ jobs:
       - name: Build the Python zip as well
         shell: cmd
         run: python app\tools\build_dist.py out\zip\Packrat-python.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: screenshots-exe
           path: smoke-exe
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Packrat-windows
           path: out/exe
           compression-level: 9
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Packrat-python-zip
           path: out/zip
@@ -150,8 +150,8 @@ jobs:
     runs-on: macos-latest         # Apple Silicon: the .dmg runs on M1 and newer Macs
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install
@@ -181,12 +181,12 @@ jobs:
           cat smoke-mac/smoke.json
       - name: Verify disk image packaging
         run: bash scripts/package-macos.sh --check Packrat-macOS.dmg
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: screenshots-mac
           path: smoke-mac
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Packrat-macOS
           path: Packrat-macOS.dmg
