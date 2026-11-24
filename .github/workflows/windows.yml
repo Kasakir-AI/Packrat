@@ -137,7 +137,12 @@ jobs:
               if ($LASTEXITCODE -ne 0) { exit 1 }
             }
           }
-          gh release upload "v$v" Packrat-windows.zip Packrat-python.zip --clobber
+          # Files already on the release stay as they are, so a merge without a version bump
+          # can't swap the published downloads for a different build.
+          $existing = gh release view "v$v" --json assets --jq '.assets[].name'
+          $missing = @('Packrat-windows.zip', 'Packrat-python.zip') | Where-Object { $existing -notcontains $_ }
+          if (-not $missing) { Write-Output "v$v already has these downloads; leaving them alone"; exit 0 }
+          gh release upload "v$v" @missing
           exit $LASTEXITCODE
 
   mac:
